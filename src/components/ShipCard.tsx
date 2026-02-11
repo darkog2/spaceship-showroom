@@ -72,6 +72,13 @@ export default function ShipCard({
   }, []);
 
   const variants = useMemo(() => ship.images.map((_, idx) => idx), [ship.images]);
+  const shortDescription = useMemo(() => {
+    const normalized = ship.description.replace(/\s+/g, ' ').trim();
+    if (normalized.length <= 96) {
+      return normalized;
+    }
+    return `${normalized.slice(0, 93).trimEnd()}...`;
+  }, [ship.description]);
 
   return (
     <article className="group cursor-pointer" onClick={() => onClick(ship)}>
@@ -163,6 +170,9 @@ export default function ShipCard({
                 {manufacturer.short} {manufacturer.name}
               </button>
             )}
+            <div className="mt-2 max-w-[300px] rounded-md border border-cyan-holo/22 bg-dark-navy/35 px-2.5 py-2">
+              <p className="font-rajdhani text-sm leading-snug text-text-light/72">{shortDescription}</p>
+            </div>
             {ship.marketNote && (
               <p className="mt-2 max-w-[280px] font-rajdhani text-sm italic text-text-light/65">{ship.marketNote}</p>
             )}

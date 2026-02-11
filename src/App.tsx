@@ -7,7 +7,7 @@ import ShipCard from './components/ShipCard';
 import ShipDetail from './components/ShipDetail';
 import ShipFilter from './components/ShipFilter';
 import { Manufacturer, Ship, manufacturers, ships } from './data/ships';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from 'lucide-react';
 
 const missionProfiles = [
   {
@@ -158,9 +158,12 @@ const paymentMethods = [
 ];
 
 const FEATURED_REPEAT = 5;
-const FEATURED_MAX_VELOCITY = 2.7;
+const FEATURED_MAX_VELOCITY = 3.7;
 const FEATURED_MIN_VELOCITY = 0.022;
 const FEATURED_DECAY_PER_FRAME = 0.9;
+const FEATURED_INPUT_WINDOW_MS = 230;
+const FEATURED_BOOST_STEP = 0.1;
+const FEATURED_BOOST_CAP = 1.7;
 const quickNavSections = [
   { id: 'home', label: 'Главная' },
   { id: 'featured', label: 'Витрина' },
@@ -185,6 +188,7 @@ export default function App() {
   const [quickViewShip, setQuickViewShip] = useState<Ship | null>(null);
   const [activeManufacturer, setActiveManufacturer] = useState<Manufacturer | null>(null);
   const [activeQuickNavSection, setActiveQuickNavSection] = useState<QuickNavSectionId>('home');
+  const [featuredVariantByShip, setFeaturedVariantByShip] = useState<Record<string, number>>({});
   const [checkoutForm, setCheckoutForm] = useState({
     destinationType: destinationHubs[0].type,
     destinationName: destinationHubs[0].name,
@@ -210,6 +214,7 @@ export default function App() {
   const featuredInertiaRef = useRef<number | null>(null);
   const featuredVelocityRef = useRef(0);
   const featuredLastFrameRef = useRef(0);
+  const featuredInputRhythmRef = useRef({ lastInput: 0, streak: 0 });
   const noticeTimeoutRef = useRef<number | null>(null);
 
   const getManufacturer = (manufacturerId: string) =>
@@ -244,6 +249,8 @@ export default function App() {
   );
   const overlayOpen = Boolean(selectedShip || quickViewShip || cartOpen || compareOpen || activeManufacturer);
   const activeQuickNavIndex = Math.max(0, quickNavSections.findIndex((section) => section.id === activeQuickNavSection));
+  const canShiftQuickNavUp = activeQuickNavIndex > 0;
+  const canShiftQuickNavDown = activeQuickNavIndex < quickNavSections.length - 1;
 
   const flashNotice = (message: string) => {
     if (noticeTimeoutRef.current !== null) {
@@ -270,6 +277,42 @@ export default function App() {
     }
     section.scrollIntoView({ behavior: 'smooth', block: 'start' });
     setActiveQuickNavSection(id);
+  };
+
+  const shiftQuickNavSection = (direction: 1 | -1) => {
+    const nextIndex = Math.min(quickNavSections.length - 1, Math.max(0, activeQuickNavIndex + direction));
+    const nextSection = quickNavSections[nextIndex];
+    if (!nextSection) {
+      return;
+    }
+    scrollToQuickNavSection(nextSection.id);
+  };
+
+  const getFeaturedInputBoost = () => {
+    const now = performance.now();
+    const rhythm = featuredInputRhythmRef.current;
+    const elapsed = now - rhythm.lastInput;
+    if (elapsed < FEATURED_INPUT_WINDOW_MS) {
+      rhythm.streak = Math.min(rhythm.streak + 1, 10);
+    } else if (elapsed < FEATURED_INPUT_WINDOW_MS * 2.2) {
+      rhythm.streak = Math.max(0, rhythm.streak - 1);
+    } else {
+      rhythm.streak = 0;
+    }
+    rhythm.lastInput = now;
+    return Math.min(FEATURED_BOOST_CAP, 1 + Math.max(0, rhythm.streak - 1) * FEATURED_BOOST_STEP);
+  };
+
+  const setFeaturedVariant = (shipId: string, variantIndex: number) => {
+    setFeaturedVariantByShip((prev) => {
+      if (prev[shipId] === variantIndex) {
+        return prev;
+      }
+      return {
+        ...prev,
+        [shipId]: variantIndex,
+      };
+    });
   };
 
   const focusManufacturer = (manufacturerId: string, shipToOpen?: Ship) => {
@@ -486,8 +529,11 @@ export default function App() {
       return;
     }
     const shift = Math.min(540, track.clientWidth * 0.95);
-    track.scrollBy({ left: direction * shift, behavior: 'smooth' });
-    applyFeaturedInertia(-direction * Math.min(1.9, 0.9 + shift / 620), 'replace');
+    const boost = getFeaturedInputBoost();
+    const shiftWithBoost = shift * Math.min(1.24, 1 + (boost - 1) * 0.34);
+    track.scrollBy({ left: direction * shiftWithBoost, behavior: 'smooth' });
+    const impulse = -direction * Math.min(3.1, (0.82 + shift / 700) * Math.min(boost, 1.55));
+    applyFeaturedInertia(impulse, 'add');
   };
 
   const onFeaturedWheel = (event: WheelEvent<HTMLDivElement>) => {
@@ -499,9 +545,11 @@ export default function App() {
     const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
     const modeMultiplier = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1;
     const pixelDelta = delta * modeMultiplier;
-    track.scrollLeft += pixelDelta * 0.74;
+    const boost = getFeaturedInputBoost();
+    track.scrollLeft += pixelDelta * (0.72 + Math.min(0.16, (boost - 1) * 0.09));
     keepFeaturedLooped();
-    applyFeaturedInertia(-pixelDelta * 0.0018, 'add');
+    const impulsePerPixel = 0.0016 + Math.min(0.0012, (boost - 1) * 0.00028);
+    applyFeaturedInertia(-pixelDelta * impulsePerPixel, 'add');
   };
 
   const onFeaturedScroll = () => {
@@ -863,21 +911,57 @@ export default function App() {
                 onWheel={onFeaturedWheel}
                 onScroll={onFeaturedScroll}
               >
-                {featuredLoopCards.map(({ key, entry, ship }) => (
-                  <article
-                    key={key}
-                    data-ship-id={ship.id}
-                    className="panel-shell min-w-[288px] cursor-pointer p-4 transition duration-300 hover:-translate-y-1 sm:min-w-[330px]"
-                  >
-                    <div className="zoomable relative h-44 overflow-hidden rounded-xl">
-                      <img src={ship.images[0]} alt={ship.name} className="h-full w-full object-cover" draggable={false} />
-                    </div>
-                    <div className="mt-4">
-                      <p className="font-mono text-xs uppercase tracking-[0.12em] text-amber-ui">{entry.label}</p>
-                      <h3 className="mt-2 font-orbitron text-2xl uppercase tracking-[0.08em] text-text-light">{ship.name}</h3>
-                      <p className="mt-1 font-rajdhani text-sm text-text-light/70">
-                        {classLabels[ship.class]} / Экипаж {ship.crewMin}-{ship.crewMax}
-                      </p>
+                {featuredLoopCards.map(({ key, entry, ship }) => {
+                  const activeVariant = Math.min(ship.images.length - 1, featuredVariantByShip[ship.id] ?? 0);
+                  const featuredImage = ship.images[activeVariant] ?? ship.images[0];
+                  const compactDescription =
+                    ship.description.length > 92 ? `${ship.description.slice(0, 89).trimEnd()}...` : ship.description;
+
+                  return (
+                    <article
+                      key={key}
+                      data-ship-id={ship.id}
+                      className="panel-shell min-w-[288px] cursor-pointer p-4 transition duration-300 hover:-translate-y-1 sm:min-w-[330px]"
+                    >
+                      <div className="zoomable relative h-44 overflow-hidden rounded-xl">
+                        <img src={featuredImage} alt={ship.name} className="h-full w-full object-cover" draggable={false} />
+                      </div>
+                      <div className="mt-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="font-mono text-xs uppercase tracking-[0.12em] text-amber-ui">{entry.label}</p>
+                          {ship.images.length > 1 && (
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-light/42">Цвет</span>
+                              <div className="flex gap-1">
+                                {ship.images.map((_, idx) => (
+                                  <button
+                                    key={`${ship.id}-featured-variant-${idx}`}
+                                    type="button"
+                                    onPointerDown={(event) => event.stopPropagation()}
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      setFeaturedVariant(ship.id, idx);
+                                    }}
+                                    onMouseEnter={() => setFeaturedVariant(ship.id, idx)}
+                                    className={`h-3.5 w-3.5 rounded-full border transition ${
+                                      idx === activeVariant
+                                        ? 'border-amber-ui bg-amber-ui/45'
+                                        : 'border-cyan-holo/40 bg-cyan-holo/16'
+                                    }`}
+                                    aria-label={`Цвет ${idx + 1}`}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        <h3 className="mt-2 font-orbitron text-2xl uppercase tracking-[0.08em] text-text-light">{ship.name}</h3>
+                        <p className="mt-1 font-rajdhani text-sm text-text-light/70">
+                          {classLabels[ship.class]} / Экипаж {ship.crewMin}-{ship.crewMax}
+                        </p>
+                        <p className="mt-2 rounded-md border border-cyan-holo/20 bg-dark-navy/42 px-2.5 py-1.5 font-rajdhani text-sm leading-snug text-text-light/68">
+                          {compactDescription}
+                        </p>
                       <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
                         <p className="font-orbitron text-3xl text-amber-ui">${(ship.priceUsd / 1000).toFixed(0)}K</p>
                         <div className="group relative flex flex-wrap items-center gap-2 sm:justify-end">
@@ -914,7 +998,7 @@ export default function App() {
                           <div className="pointer-events-none absolute bottom-full left-1/2 z-20 w-52 -translate-x-1/2 translate-y-2 opacity-0 transition group-hover:translate-y-0 group-hover:opacity-100 sm:w-56">
                             <div className="rounded-xl border border-cyan-holo/35 bg-dark-navy/95 p-2 shadow-[0_16px_40px_rgba(6,4,15,0.65)]">
                               <div className="flex items-center gap-2">
-                                <img src={ship.images[0]} alt={ship.name} className="h-14 w-20 rounded-lg object-cover" />
+                                <img src={featuredImage} alt={ship.name} className="h-14 w-20 rounded-lg object-cover" />
                                 <div>
                                   <p className="font-orbitron text-sm uppercase tracking-[0.08em] text-text-light">{ship.name}</p>
                                   <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-light/60">
@@ -930,8 +1014,9 @@ export default function App() {
                         </div>
                       </div>
                     </div>
-                  </article>
-                ))}
+                    </article>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -1255,6 +1340,26 @@ export default function App() {
       {!overlayOpen && (
         <nav className="section-orbit" aria-label="Быстрая навигация по разделам">
           <div className="section-orbit-shell">
+            <div className="section-orbit-arrows">
+              <button
+                type="button"
+                aria-label="Перейти к разделу выше"
+                onClick={() => shiftQuickNavSection(-1)}
+                disabled={!canShiftQuickNavUp}
+                className="section-orbit-arrow"
+              >
+                <ChevronUp size={14} />
+              </button>
+              <button
+                type="button"
+                aria-label="Перейти к разделу ниже"
+                onClick={() => shiftQuickNavSection(1)}
+                disabled={!canShiftQuickNavDown}
+                className="section-orbit-arrow"
+              >
+                <ChevronDown size={14} />
+              </button>
+            </div>
             <div className="section-orbit-track">
               <span className="section-orbit-line" aria-hidden="true" />
               <span
