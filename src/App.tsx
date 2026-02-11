@@ -165,6 +165,8 @@ const FEATURED_DECAY_PER_FRAME = 0.9;
 const FEATURED_INPUT_WINDOW_MS = 230;
 const FEATURED_BOOST_STEP = 0.1;
 const FEATURED_BOOST_CAP = 1.7;
+const MANUFACTURER_PREVIEW_LINGER_MS = 2200;
+const MANUFACTURER_PREVIEW_FADE_MS = 260;
 const quickNavSections = [
   { id: 'home', label: 'Главная' },
   { id: 'featured', label: 'Витрина' },
@@ -175,6 +177,12 @@ const quickNavSections = [
 ] as const;
 
 type QuickNavSectionId = (typeof quickNavSections)[number]['id'];
+type ManufacturerChipPreview = {
+  ship: Ship;
+  left: number;
+  top: number;
+  visible: boolean;
+};
 
 export default function App() {
   const [filteredShips, setFilteredShips] = useState<Ship[]>(ships);
@@ -190,6 +198,7 @@ export default function App() {
   const [activeManufacturer, setActiveManufacturer] = useState<Manufacturer | null>(null);
   const [activeQuickNavSection, setActiveQuickNavSection] = useState<QuickNavSectionId>('home');
   const [featuredVariantByShip, setFeaturedVariantByShip] = useState<Record<string, number>>({});
+  const [manufacturerChipPreview, setManufacturerChipPreview] = useState<ManufacturerChipPreview | null>(null);
   const [checkoutForm, setCheckoutForm] = useState({
     destinationType: destinationHubs[0].type,
     destinationName: destinationHubs[0].name,
@@ -217,6 +226,8 @@ export default function App() {
   const featuredLastFrameRef = useRef(0);
   const featuredInputRhythmRef = useRef({ lastInput: 0, streak: 0 });
   const noticeTimeoutRef = useRef<number | null>(null);
+  const manufacturerPreviewHoldRef = useRef<number | null>(null);
+  const manufacturerPreviewFadeRef = useRef<number | null>(null);
 
   const getManufacturer = (manufacturerId: string) =>
     manufacturers.find((manufacturer) => manufacturer.id === manufacturerId);
@@ -302,6 +313,47 @@ export default function App() {
         [shipId]: variantIndex,
       };
     });
+  };
+
+  const clearManufacturerPreviewTimers = () => {
+    if (manufacturerPreviewHoldRef.current !== null) {
+      clearTimeout(manufacturerPreviewHoldRef.current);
+      manufacturerPreviewHoldRef.current = null;
+    }
+    if (manufacturerPreviewFadeRef.current !== null) {
+      clearTimeout(manufacturerPreviewFadeRef.current);
+      manufacturerPreviewFadeRef.current = null;
+    }
+  };
+
+  const showManufacturerChipPreview = (ship: Ship, anchorElement: HTMLElement) => {
+    clearManufacturerPreviewTimers();
+    const rect = anchorElement.getBoundingClientRect();
+    const width = 280;
+    const left = Math.max(width / 2 + 18, Math.min(window.innerWidth - width / 2 - 18, rect.left + rect.width / 2));
+    const top = Math.max(90, rect.top - 8);
+    setManufacturerChipPreview({
+      ship,
+      left,
+      top,
+      visible: true,
+    });
+  };
+
+  const hideManufacturerChipPreview = (linger = MANUFACTURER_PREVIEW_LINGER_MS) => {
+    clearManufacturerPreviewTimers();
+    manufacturerPreviewHoldRef.current = window.setTimeout(() => {
+      setManufacturerChipPreview((prev) => (prev ? { ...prev, visible: false } : prev));
+      manufacturerPreviewFadeRef.current = window.setTimeout(() => {
+        setManufacturerChipPreview((prev) => (prev && !prev.visible ? null : prev));
+      }, MANUFACTURER_PREVIEW_FADE_MS);
+    }, linger);
+  };
+
+  const openShipFromManufacturerPreview = (ship: Ship) => {
+    clearManufacturerPreviewTimers();
+    setManufacturerChipPreview(null);
+    setSelectedShip(ship);
   };
 
   const focusManufacturer = (manufacturerId: string, shipToOpen?: Ship) => {
@@ -548,6 +600,7 @@ export default function App() {
   useEffect(() => {
     return () => {
       stopFeaturedInertia();
+      clearManufacturerPreviewTimers();
       if (noticeTimeoutRef.current !== null) {
         clearTimeout(noticeTimeoutRef.current);
       }
@@ -616,6 +669,8 @@ export default function App() {
     if (!overlayOpen) {
       return;
     }
+    clearManufacturerPreviewTimers();
+    setManufacturerChipPreview(null);
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
@@ -1156,7 +1211,11 @@ export default function App() {
                             key={ship.id}
                             type="button"
                             onClick={() => focusManufacturer(manufacturer.id, ship)}
-                            className="rounded-md border border-cyan-holo/30 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.1em] text-text-light/80 hover:border-amber-ui/45 hover:text-amber-ui"
+                            onMouseEnter={(event) => showManufacturerChipPreview(ship, event.currentTarget)}
+                            onFocus={(event) => showManufacturerChipPreview(ship, event.currentTarget)}
+                            onMouseLeave={() => hideManufacturerChipPreview()}
+                            onBlur={() => hideManufacturerChipPreview(1200)}
+                            className="manufacturer-ship-chip rounded-md border border-cyan-holo/30 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.1em] text-text-light/80 hover:border-amber-ui/45 hover:text-amber-ui"
                           >
                             {ship.name}
                           </button>
@@ -1325,6 +1384,40 @@ export default function App() {
           </div>
         </section>
       </main>
+
+      {manufacturerChipPreview && (
+        <button
+          type="button"
+          className={`manufacturer-chip-preview${manufacturerChipPreview.visible ? ' is-visible' : ' is-fading'}`}
+          style={{ left: `${manufacturerChipPreview.left}px`, top: `${manufacturerChipPreview.top}px` }}
+          onMouseEnter={() => {
+            clearManufacturerPreviewTimers();
+            setManufacturerChipPreview((prev) => (prev ? { ...prev, visible: true } : prev));
+          }}
+          onMouseLeave={() => hideManufacturerChipPreview(900)}
+          onFocus={() => {
+            clearManufacturerPreviewTimers();
+            setManufacturerChipPreview((prev) => (prev ? { ...prev, visible: true } : prev));
+          }}
+          onBlur={() => hideManufacturerChipPreview(700)}
+          onClick={() => openShipFromManufacturerPreview(manufacturerChipPreview.ship)}
+        >
+          <div className="manufacturer-chip-preview-media">
+            <img
+              src={manufacturerChipPreview.ship.images[0]}
+              alt={manufacturerChipPreview.ship.name}
+              className="h-full w-full object-cover"
+            />
+          </div>
+          <div className="manufacturer-chip-preview-content">
+            <p className="manufacturer-chip-preview-name">{manufacturerChipPreview.ship.name}</p>
+            <p className="manufacturer-chip-preview-meta">
+              {classLabels[manufacturerChipPreview.ship.class]} / {manufacturerChipPreview.ship.crewMin}-{manufacturerChipPreview.ship.crewMax}
+            </p>
+            <p className="manufacturer-chip-preview-price">${(manufacturerChipPreview.ship.priceUsd / 1000).toFixed(0)}K</p>
+          </div>
+        </button>
+      )}
 
       {!overlayOpen && (
         <SectionOrbitNav
