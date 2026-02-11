@@ -353,6 +353,82 @@ main {
   touch-action: pan-y;
 }
 
+.catalog-layout-anchor {
+  position: relative;
+}
+
+.catalog-side-filter-dock {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: clamp(286px, 18vw, 332px);
+  transform: translateX(calc(-100% - clamp(14px, 2vw, 26px)));
+  pointer-events: none;
+  z-index: 6;
+}
+
+.catalog-side-filter-sticky {
+  position: sticky;
+  top: 94px;
+  max-height: calc(100vh - 106px);
+  pointer-events: auto;
+}
+
+.catalog-side-filter-sticky > .panel-shell {
+  margin-bottom: 0 !important;
+  max-height: calc(100vh - 106px);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.catalog-side-filter-sticky > .panel-shell::-webkit-scrollbar {
+  width: 7px;
+}
+
+.catalog-side-filter-sticky > .panel-shell::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(0, 238, 255, 0.44), rgba(255, 143, 31, 0.44));
+  border-radius: 999px;
+}
+
+.catalog-side-filter-sticky > .panel-shell::-webkit-scrollbar-track {
+  background: rgba(8, 6, 18, 0.24);
+}
+
+.ship-filter-panel {
+  position: relative;
+  isolation: isolate;
+  background:
+    linear-gradient(152deg, rgba(11, 8, 23, 0.72), rgba(8, 6, 18, 0.6)),
+    radial-gradient(120% 80% at 12% 10%, rgba(118, 96, 175, 0.12), transparent 68%),
+    radial-gradient(120% 90% at 88% 12%, rgba(255, 143, 31, 0.08), transparent 72%);
+  border-color: rgba(126, 104, 178, 0.34) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.03),
+    0 10px 26px rgba(3, 3, 10, 0.44),
+    0 0 0 1px rgba(255, 143, 31, 0.04);
+}
+
+.ship-filter-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(120deg, transparent 30%, rgba(255, 255, 255, 0.03) 50%, transparent 70%);
+  opacity: 0.14;
+}
+
+.ship-filter-panel--sidebar {
+  backdrop-filter: blur(12px);
+}
+
+.ship-filter-panel--sidebar button:focus-visible,
+.ship-filter-panel--default button:focus-visible {
+  outline: 1px solid rgba(255, 143, 31, 0.35);
+  outline-offset: 1px;
+}
+
 .panel-shell {
   transition:
     transform 260ms cubic-bezier(0.22, 1, 0.36, 1),
@@ -646,12 +722,12 @@ main {
 
   .flow-section {
     opacity: 0;
-    transform: translate3d(0, 58px, 0) scale(0.986);
-    filter: saturate(0.8) brightness(0.9) blur(3px);
+    transform: translate3d(0, 36px, 0) scale(0.992);
+    filter: saturate(0.86) brightness(0.94) blur(1.8px);
     transition:
-      opacity 860ms cubic-bezier(0.22, 1, 0.36, 1) var(--flow-delay, 0ms),
-      transform 860ms cubic-bezier(0.22, 1, 0.36, 1) var(--flow-delay, 0ms),
-      filter 860ms ease var(--flow-delay, 0ms);
+      opacity 720ms cubic-bezier(0.22, 1, 0.36, 1) var(--flow-delay, 0ms),
+      transform 720ms cubic-bezier(0.22, 1, 0.36, 1) var(--flow-delay, 0ms),
+      filter 720ms ease var(--flow-delay, 0ms);
     will-change: opacity, transform, filter;
   }
 
@@ -871,7 +947,8 @@ main {
   box-shadow:
     0 0 30px rgba(0, 238, 255, 0.9),
     0 0 40px rgba(255, 60, 20, 0.8);
-  transition: height 340ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: none;
+  will-change: height;
   animation: activeFlicker 3s ease-in-out infinite;
 }
 
@@ -887,7 +964,8 @@ main {
   box-shadow:
     0 0 40px rgba(255, 60, 20, 1),
     0 0 60px rgba(0, 238, 255, 0.4);
-  transition: top 340ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: none;
+  will-change: top;
   animation: orbitPulse 2s ease-in-out infinite;
   pointer-events: none;
 }

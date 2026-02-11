@@ -159,12 +159,14 @@ const paymentMethods = [
 ];
 
 const FEATURED_REPEAT = 5;
-const FEATURED_MAX_VELOCITY = 3.7;
-const FEATURED_MIN_VELOCITY = 0.022;
-const FEATURED_DECAY_PER_FRAME = 0.9;
-const FEATURED_INPUT_WINDOW_MS = 230;
-const FEATURED_BOOST_STEP = 0.1;
-const FEATURED_BOOST_CAP = 1.7;
+const FEATURED_MAX_VELOCITY = 6.6;
+const FEATURED_MIN_VELOCITY = 0.014;
+const FEATURED_DECAY_PER_FRAME = 0.948;
+const FEATURED_INPUT_WINDOW_MS = 270;
+const FEATURED_BOOST_STEP = 0.18;
+const FEATURED_BOOST_CAP = 3.1;
+const FEATURED_DRAG_RELEASE_MULTIPLIER = 6.8;
+const FEATURED_WHEEL_IMPULSE_BASE = 0.0023;
 const MANUFACTURER_PREVIEW_LINGER_MS = 2200;
 const MANUFACTURER_PREVIEW_FADE_MS = 260;
 const quickNavSections = [
@@ -214,6 +216,8 @@ export default function App() {
   const catalogStepUnlockTimerRef = useRef<number | null>(null);
   const catalogStepLastDirRef = useRef<1 | -1 | 0>(0);
   const catalogStepLastTimeRef = useRef(0);
+  const sectionSnapLockRef = useRef(false);
+  const sectionSnapUnlockTimerRef = useRef<number | null>(null);
   const tiltHoverRef = useRef<HTMLElement | null>(null);
   const featuredPointerIdRef = useRef<number | null>(null);
   const featuredDragRef = useRef({
@@ -299,8 +303,8 @@ export default function App() {
     const rhythm = featuredInputRhythmRef.current;
     const elapsed = now - rhythm.lastInput;
     if (elapsed < FEATURED_INPUT_WINDOW_MS) {
-      rhythm.streak = Math.min(rhythm.streak + 1, 10);
-    } else if (elapsed < FEATURED_INPUT_WINDOW_MS * 2.2) {
+      rhythm.streak = Math.min(rhythm.streak + 1, 16);
+    } else if (elapsed < FEATURED_INPUT_WINDOW_MS * 2.6) {
       rhythm.streak = Math.max(0, rhythm.streak - 1);
     } else {
       rhythm.streak = 0;
@@ -462,10 +466,22 @@ export default function App() {
   };
 
   const applyFeaturedInertia = (impulse: number, mode: 'add' | 'replace' = 'add') => {
+    const currentVelocity = featuredVelocityRef.current;
     if (mode === 'replace') {
-      featuredVelocityRef.current = impulse;
+      if (currentVelocity !== 0 && Math.sign(currentVelocity) === Math.sign(impulse)) {
+        featuredVelocityRef.current = currentVelocity + impulse * 0.72;
+      } else {
+        featuredVelocityRef.current = impulse;
+      }
     } else {
       featuredVelocityRef.current += impulse;
+      if (
+        currentVelocity !== 0 &&
+        Math.sign(currentVelocity) === Math.sign(impulse) &&
+        Math.abs(currentVelocity) > 1.15
+      ) {
+        featuredVelocityRef.current += impulse * 0.15;
+      }
     }
     featuredVelocityRef.current = Math.max(
       -FEATURED_MAX_VELOCITY,
@@ -494,7 +510,7 @@ export default function App() {
       featuredLastFrameRef.current = now;
       track.scrollLeft -= featuredVelocityRef.current * dt;
       keepFeaturedLooped();
-      setFeaturedPlasma(Math.min(Math.abs(featuredVelocityRef.current) / 2.1, 1.6));
+      setFeaturedPlasma(Math.min(Math.abs(featuredVelocityRef.current) / 3.15, 1.6));
 
       const frameScale = dt / 16.666;
       featuredVelocityRef.current *= Math.pow(FEATURED_DECAY_PER_FRAME, frameScale);
@@ -564,7 +580,7 @@ export default function App() {
     const dt = now - drag.lastTime;
     if (dt > 0) {
       drag.velocity = (event.clientX - drag.lastX) / dt;
-      setFeaturedPlasma(Math.min(Math.abs(drag.velocity) / 1.2, 1.6));
+      setFeaturedPlasma(Math.min(Math.abs(drag.velocity) / 0.95, 1.6));
     }
     drag.lastX = event.clientX;
     drag.lastY = event.clientY;
@@ -603,8 +619,9 @@ export default function App() {
       window.setTimeout(() => {
         featuredDragRef.current.moved = false;
       }, 140);
-      if (Math.abs(drag.velocity) > 0.01) {
-        applyFeaturedInertia(drag.velocity * 4.2, 'replace');
+      if (Math.abs(drag.velocity) > 0.008) {
+        const flickBoost = Math.min(2.15, 1 + Math.max(0, Math.abs(drag.velocity) - 0.35) * 0.75);
+        applyFeaturedInertia(drag.velocity * FEATURED_DRAG_RELEASE_MULTIPLIER * flickBoost, 'replace');
       }
     } else {
       drag.velocity = 0;
@@ -617,11 +634,12 @@ export default function App() {
     if (!track) {
       return;
     }
-    const shift = Math.min(540, track.clientWidth * 0.95);
+    const shift = Math.min(620, track.clientWidth * 1.05);
     const boost = getFeaturedInputBoost();
-    const shiftWithBoost = shift * Math.min(1.24, 1 + (boost - 1) * 0.34);
+    const shiftWithBoost = shift * Math.min(1.75, 1 + (boost - 1) * 0.55);
     track.scrollBy({ left: direction * shiftWithBoost, behavior: 'smooth' });
-    const impulse = -direction * Math.min(3.1, (0.82 + shift / 700) * Math.min(boost, 1.55));
+    const impulseBase = 1.1 + shift / 600;
+    const impulse = -direction * Math.min(5.4, impulseBase * boost * 1.25);
     applyFeaturedInertia(impulse, 'add');
   };
 
@@ -635,9 +653,9 @@ export default function App() {
     const modeMultiplier = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1;
     const pixelDelta = delta * modeMultiplier;
     const boost = getFeaturedInputBoost();
-    track.scrollLeft += pixelDelta * (0.72 + Math.min(0.16, (boost - 1) * 0.09));
+    track.scrollLeft += pixelDelta * (0.78 + Math.min(0.42, (boost - 1) * 0.22));
     keepFeaturedLooped();
-    const impulsePerPixel = 0.0016 + Math.min(0.0012, (boost - 1) * 0.00028);
+    const impulsePerPixel = FEATURED_WHEEL_IMPULSE_BASE + Math.min(0.0032, (boost - 1) * 0.0011);
     applyFeaturedInertia(-pixelDelta * impulsePerPixel, 'add');
   };
 
@@ -738,12 +756,105 @@ export default function App() {
         clearTimeout(catalogStepUnlockTimerRef.current);
         catalogStepUnlockTimerRef.current = null;
       }
+      if (sectionSnapUnlockTimerRef.current !== null) {
+        clearTimeout(sectionSnapUnlockTimerRef.current);
+        sectionSnapUnlockTimerRef.current = null;
+      }
       clearManufacturerPreviewTimers();
       if (noticeTimeoutRef.current !== null) {
         clearTimeout(noticeTimeoutRef.current);
       }
     };
   }, []);
+
+  useEffect(() => {
+    const finePointer = window.matchMedia('(pointer: fine)').matches;
+    if (!finePointer) {
+      return;
+    }
+
+    const onWindowWheel = (event: globalThis.WheelEvent) => {
+      if (overlayOpen || window.innerWidth < 1200) {
+        return;
+      }
+      if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.shiftKey) {
+        return;
+      }
+
+      const target = event.target as HTMLElement | null;
+      if (!target) {
+        return;
+      }
+      if (target.closest('#catalog, .featured-loop-track, .section-orbit')) {
+        return;
+      }
+
+      const delta = Math.abs(event.deltaY) >= Math.abs(event.deltaX) ? event.deltaY : event.deltaX;
+      if (Math.abs(delta) < 12) {
+        return;
+      }
+      const direction: 1 | -1 = delta > 0 ? 1 : -1;
+
+      if (sectionSnapLockRef.current) {
+        event.preventDefault();
+        return;
+      }
+
+      const sections = Array.from(document.querySelectorAll<HTMLElement>('main > section'));
+      if (sections.length < 2) {
+        return;
+      }
+
+      const sectionTops = sections
+        .map((section) => Math.round(section.getBoundingClientRect().top + window.scrollY))
+        .filter((top, index, arr) => index === 0 || Math.abs(top - arr[index - 1]) > 8);
+
+      if (sectionTops.length < 2) {
+        return;
+      }
+
+      const headerOffset = 92;
+      const probeY = window.scrollY + headerOffset;
+      let currentIndex = 0;
+      for (let index = 0; index < sectionTops.length; index += 1) {
+        if (probeY >= sectionTops[index] - 2) {
+          currentIndex = index;
+        } else {
+          break;
+        }
+      }
+
+      const nextIndex = Math.max(0, Math.min(sectionTops.length - 1, currentIndex + direction));
+      if (nextIndex === currentIndex) {
+        return;
+      }
+
+      event.preventDefault();
+      sectionSnapLockRef.current = true;
+      window.scrollTo({
+        top: Math.max(0, sectionTops[nextIndex] - headerOffset),
+        behavior: 'smooth',
+      });
+
+      if (sectionSnapUnlockTimerRef.current !== null) {
+        clearTimeout(sectionSnapUnlockTimerRef.current);
+      }
+      sectionSnapUnlockTimerRef.current = window.setTimeout(() => {
+        sectionSnapLockRef.current = false;
+        sectionSnapUnlockTimerRef.current = null;
+      }, 560);
+    };
+
+    window.addEventListener('wheel', onWindowWheel, { passive: false });
+    return () => {
+      window.removeEventListener('wheel', onWindowWheel);
+      if (sectionSnapUnlockTimerRef.current !== null) {
+        clearTimeout(sectionSnapUnlockTimerRef.current);
+        sectionSnapUnlockTimerRef.current = null;
+      }
+      sectionSnapLockRef.current = false;
+    };
+  }, [overlayOpen]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -810,6 +921,14 @@ export default function App() {
       }
       const target = event.target as HTMLElement | null;
       if (!target) {
+        return;
+      }
+      if (target.closest('.no-tilt, [data-no-tilt="true"]')) {
+        if (tiltHoverRef.current) {
+          tiltHoverRef.current.classList.remove('tilt-hover');
+          resetHoverTilt(tiltHoverRef.current);
+          tiltHoverRef.current = null;
+        }
         return;
       }
       if (target.closest('.card-tilt-reactive')) {
@@ -879,7 +998,7 @@ export default function App() {
         section.classList.add('flow-divider');
       }
       section.style.setProperty('--flow-delay', `${index <= 1 ? 0 : Math.min(index * 55, 260)}ms`);
-      if (index <= 1) {
+      if (index <= 2) {
         section.classList.add('flow-section-visible');
       }
     });
@@ -903,8 +1022,8 @@ export default function App() {
         });
       },
       {
-        threshold: 0.12,
-        rootMargin: '0px 0px -8% 0px',
+        threshold: 0.03,
+        rootMargin: '0px 0px 26% 0px',
       },
     );
 
@@ -1121,7 +1240,7 @@ export default function App() {
                 type="button"
                 aria-label="Предыдущие предложения"
                 onClick={() => scrollFeatured(-1)}
-                className="absolute left-1 top-1/2 z-20 -translate-y-1/2 rounded-full border border-cyan-holo/40 bg-dark-navy/60 p-2.5 text-cyan-holo/90 backdrop-blur-md transition hover:border-amber-ui/80 hover:bg-dark-navy/70 hover:text-amber-ui hover:shadow-[0_0_20px_rgba(255,80,40,0.5)] sm:left-2"
+                className="no-tilt absolute left-1 top-1/2 z-20 -translate-y-1/2 rounded-full border border-cyan-holo/40 bg-dark-navy/60 p-2.5 text-cyan-holo/90 backdrop-blur-md transition hover:border-amber-ui/80 hover:bg-dark-navy/70 hover:text-amber-ui hover:shadow-[0_0_20px_rgba(255,80,40,0.5)] sm:left-2"
               >
                 <ChevronLeft size={18} />
               </button>
@@ -1129,7 +1248,7 @@ export default function App() {
                 type="button"
                 aria-label="Следующие предложения"
                 onClick={() => scrollFeatured(1)}
-                className="absolute right-1 top-1/2 z-20 -translate-y-1/2 rounded-full border border-cyan-holo/40 bg-dark-navy/60 p-2.5 text-cyan-holo/90 backdrop-blur-md transition hover:border-amber-ui/80 hover:bg-dark-navy/70 hover:text-amber-ui hover:shadow-[0_0_20px_rgba(255,80,40,0.5)] sm:right-2"
+                className="no-tilt absolute right-1 top-1/2 z-20 -translate-y-1/2 rounded-full border border-cyan-holo/40 bg-dark-navy/60 p-2.5 text-cyan-holo/90 backdrop-blur-md transition hover:border-amber-ui/80 hover:bg-dark-navy/70 hover:text-amber-ui hover:shadow-[0_0_20px_rgba(255,80,40,0.5)] sm:right-2"
               >
                 <ChevronRight size={18} />
               </button>
@@ -1242,71 +1361,81 @@ export default function App() {
 
         <section id="catalog" className="py-16 sm:py-20">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="mb-8 sm:mb-10">
-              <h2 className="heading-lg text-text-light">Доступные корабли</h2>
-              <p className="soft-copy mt-3 max-w-3xl font-rajdhani text-xl leading-relaxed">
-                Погружайтесь в карточки, сравнивайте ключевые параметры и мгновенно переходите к детальным
-                характеристикам, уникальным возможностям и эксклюзивным комплектациям.
-              </p>
-            </div>
-
-            <ShipFilter ships={ships} onFilter={handleFilter} />
-
-            {manufacturerFocus && (
-              <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-cyan-holo/30 bg-dark-navy/50 px-4 py-3">
-                <div>
-                  <p className="font-mono text-xs uppercase tracking-[0.14em] text-cyan-holo">Фильтр по корпорации</p>
-                  <p className="mt-1 font-orbitron text-lg uppercase tracking-[0.08em] text-text-light">
-                    {manufacturerFocus.name}
-                  </p>
+            <div className="catalog-layout-anchor relative">
+              <div className="catalog-side-filter-dock hidden xl:block">
+                <div className="catalog-side-filter-sticky">
+                  <ShipFilter ships={ships} onFilter={handleFilter} variant="sidebar" />
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setManufacturerFocusId(null)}
-                  className="rounded-md border border-amber-ui/45 px-3 py-1 font-mono text-xs uppercase tracking-[0.12em] text-amber-ui transition hover:border-amber-ui/70"
-                >
-                  Сбросить фильтр
-                </button>
               </div>
-            )}
 
-            {displayedShips.length > 0 ? (
-              <div
-                ref={catalogGridRef}
-                onWheel={onCatalogStepWheel}
-                className="catalog-step-grid grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3"
-              >
-                {displayedShips.map((ship) => (
-                  <ShipCard
-                    key={ship.id}
-                    ship={ship}
-                    onClick={setSelectedShip}
-                    onCompare={toggleCompare}
-                    onQuickView={setQuickViewShip}
-                    onAddToCart={addToCart}
-                    onManufacturerClick={(id) => focusManufacturer(id)}
-                    isCompared={compareList.some((item) => item.id === ship.id)}
-                    manufacturer={getManufacturer(ship.manufacturerId)}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="panel-shell p-8 text-center">
-                <p className="font-rajdhani text-2xl text-text-light/80">Под текущие фильтры модели не найдены.</p>
-                <p className="mt-2 font-rajdhani text-lg text-text-light/60">
-                  Сбросьте фильтры - каталог снова откроется полностью.
+              <div className="mb-8 sm:mb-10">
+                <h2 className="heading-lg text-text-light">Доступные корабли</h2>
+                <p className="soft-copy mt-3 max-w-3xl font-rajdhani text-xl leading-relaxed">
+                  Погружайтесь в карточки, сравнивайте ключевые параметры и мгновенно переходите к детальным
+                  характеристикам, уникальным возможностям и эксклюзивным комплектациям.
                 </p>
-                {manufacturerFocusId && (
+              </div>
+
+              <div className="xl:hidden">
+                <ShipFilter ships={ships} onFilter={handleFilter} variant="default" />
+              </div>
+
+              {manufacturerFocus && (
+                <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-cyan-holo/30 bg-dark-navy/50 px-4 py-3">
+                  <div>
+                    <p className="font-mono text-xs uppercase tracking-[0.14em] text-cyan-holo">Фильтр по корпорации</p>
+                    <p className="mt-1 font-orbitron text-lg uppercase tracking-[0.08em] text-text-light">
+                      {manufacturerFocus.name}
+                    </p>
+                  </div>
                   <button
                     type="button"
                     onClick={() => setManufacturerFocusId(null)}
-                    className="mt-4 rounded-md border border-amber-ui/45 px-4 py-2 font-mono text-xs uppercase tracking-[0.12em] text-amber-ui"
+                    className="rounded-md border border-amber-ui/45 px-3 py-1 font-mono text-xs uppercase tracking-[0.12em] text-amber-ui transition hover:border-amber-ui/70"
                   >
-                    Сбросить фильтр бренда
+                    Сбросить фильтр
                   </button>
-                )}
-              </div>
-            )}
+                </div>
+              )}
+
+              {displayedShips.length > 0 ? (
+                <div
+                  ref={catalogGridRef}
+                  onWheel={onCatalogStepWheel}
+                  className="catalog-step-grid grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3"
+                >
+                  {displayedShips.map((ship) => (
+                    <ShipCard
+                      key={ship.id}
+                      ship={ship}
+                      onClick={setSelectedShip}
+                      onCompare={toggleCompare}
+                      onQuickView={setQuickViewShip}
+                      onAddToCart={addToCart}
+                      onManufacturerClick={(id) => focusManufacturer(id)}
+                      isCompared={compareList.some((item) => item.id === ship.id)}
+                      manufacturer={getManufacturer(ship.manufacturerId)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="panel-shell p-8 text-center">
+                  <p className="font-rajdhani text-2xl text-text-light/80">Под текущие фильтры модели не найдены.</p>
+                  <p className="mt-2 font-rajdhani text-lg text-text-light/60">
+                    Сбросьте фильтры - каталог снова откроется полностью.
+                  </p>
+                  {manufacturerFocusId && (
+                    <button
+                      type="button"
+                      onClick={() => setManufacturerFocusId(null)}
+                      className="mt-4 rounded-md border border-amber-ui/45 px-4 py-2 font-mono text-xs uppercase tracking-[0.12em] text-amber-ui"
+                    >
+                      Сбросить фильтр бренда
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </section>
 

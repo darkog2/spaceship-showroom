@@ -1,4 +1,5 @@
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 
 export type OrbitSection = {
   id: string;
@@ -13,12 +14,76 @@ type Props = {
 
 export default function SectionOrbitNav({ sections, activeId, onJump }: Props) {
   const activeIndex = Math.max(0, sections.findIndex((section) => section.id === activeId));
+  const [displayIndex, setDisplayIndex] = useState(activeIndex);
+  const displayIndexRef = useRef(activeIndex);
+  const velocityRef = useRef(0);
+  const frameRef = useRef<number | null>(null);
   const canShiftUp = activeIndex > 0;
   const canShiftDown = activeIndex < sections.length - 1;
 
   const ORBIT_STEP = 36;
   const ORBIT_BASE = 14;
   const ORBIT_FOCUS_SHIFT = -11;
+
+  useEffect(() => {
+    displayIndexRef.current = displayIndex;
+  }, [displayIndex]);
+
+  useEffect(() => {
+    const maxIndex = Math.max(0, sections.length - 1);
+    if (displayIndexRef.current > maxIndex) {
+      displayIndexRef.current = maxIndex;
+      setDisplayIndex(maxIndex);
+    }
+  }, [sections.length]);
+
+  useEffect(() => {
+    const hasWindow = typeof window !== 'undefined';
+    const prefersReducedMotion = hasWindow && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (prefersReducedMotion) {
+      velocityRef.current = 0;
+      displayIndexRef.current = activeIndex;
+      setDisplayIndex(activeIndex);
+      return;
+    }
+
+    const maxIndex = Math.max(0, sections.length - 1);
+    const stiffness = 0.25;
+    const damping = 0.78;
+    const precision = 0.002;
+
+    const animate = () => {
+      const delta = activeIndex - displayIndexRef.current;
+      velocityRef.current = (velocityRef.current + delta * stiffness) * damping;
+
+      const nextIndex = Math.min(maxIndex, Math.max(0, displayIndexRef.current + velocityRef.current));
+      displayIndexRef.current = nextIndex;
+      setDisplayIndex(nextIndex);
+
+      if (Math.abs(delta) < precision && Math.abs(velocityRef.current) < precision) {
+        displayIndexRef.current = activeIndex;
+        velocityRef.current = 0;
+        setDisplayIndex(activeIndex);
+        frameRef.current = null;
+        return;
+      }
+
+      frameRef.current = requestAnimationFrame(animate);
+    };
+
+    if (frameRef.current !== null) {
+      cancelAnimationFrame(frameRef.current);
+    }
+    frameRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (frameRef.current !== null) {
+        cancelAnimationFrame(frameRef.current);
+        frameRef.current = null;
+      }
+    };
+  }, [activeIndex, sections.length]);
 
   const shift = (direction: 1 | -1) => {
     const nextIndex = Math.min(sections.length - 1, Math.max(0, activeIndex + direction));
@@ -57,12 +122,12 @@ export default function SectionOrbitNav({ sections, activeId, onJump }: Props) {
           <span
             className="section-orbit-progress"
             aria-hidden="true"
-            style={{ height: `${ORBIT_BASE + activeIndex * ORBIT_STEP}px` }}
+            style={{ height: `${ORBIT_BASE + displayIndex * ORBIT_STEP}px` }}
           />
           <span
             className="section-orbit-focus"
             aria-hidden="true"
-            style={{ top: `${activeIndex * ORBIT_STEP + ORBIT_FOCUS_SHIFT}px` }}
+            style={{ top: `${displayIndex * ORBIT_STEP + ORBIT_FOCUS_SHIFT}px` }}
           />
           {sections.map((section) => {
             const isActive = section.id === activeId;
