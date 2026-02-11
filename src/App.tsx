@@ -463,15 +463,6 @@ export default function App() {
     keepFeaturedLooped();
   };
 
-  const openFeaturedShip = (ship: Ship) => {
-    if (featuredDragRef.current.moved || Math.abs(featuredDragRef.current.velocity) > 0.2) {
-      return;
-    }
-    stopFeaturedInertia();
-    setFeaturedPlasma(0);
-    setSelectedShip(ship);
-  };
-
   useEffect(() => {
     return () => {
       stopFeaturedInertia();
