@@ -228,6 +228,143 @@ main {
   }
 }
 
+.section-orbit {
+  position: fixed;
+  right: 1rem;
+  top: 50%;
+  z-index: 58;
+  transform: translateY(-50%);
+}
+
+.section-orbit-shell {
+  border-radius: 999px;
+  border: 1px solid rgba(0, 238, 255, 0.2);
+  background: linear-gradient(180deg, rgba(9, 7, 19, 0.82), rgba(7, 5, 16, 0.58));
+  padding: 12px 10px;
+  backdrop-filter: blur(12px);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 10px 28px rgba(4, 2, 10, 0.55),
+    0 0 30px rgba(0, 238, 255, 0.08);
+}
+
+.section-orbit-track {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.section-orbit-line,
+.section-orbit-progress {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  border-radius: 999px;
+}
+
+.section-orbit-line {
+  top: 5px;
+  bottom: 5px;
+  width: 1px;
+  background: linear-gradient(180deg, rgba(127, 153, 229, 0.3), rgba(255, 143, 31, 0.24));
+}
+
+.section-orbit-progress {
+  top: 5px;
+  width: 2px;
+  background: linear-gradient(180deg, rgba(0, 238, 255, 0.84), rgba(255, 143, 31, 0.72));
+  box-shadow: 0 0 12px rgba(0, 238, 255, 0.46), 0 0 20px rgba(255, 143, 31, 0.3);
+  transition: height 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.section-orbit-focus {
+  position: absolute;
+  left: 50%;
+  width: 22px;
+  height: 22px;
+  transform: translate(-50%, 0);
+  border-radius: 999px;
+  border: 1px solid rgba(255, 143, 31, 0.8);
+  background: radial-gradient(circle, rgba(255, 143, 31, 0.24) 0%, rgba(255, 143, 31, 0.08) 68%, transparent 100%);
+  box-shadow: 0 0 18px rgba(255, 143, 31, 0.52), 0 0 22px rgba(0, 238, 255, 0.2);
+  transition: top 320ms cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
+
+.section-orbit-node {
+  position: relative;
+  z-index: 2;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(187, 206, 255, 0.55);
+  background: linear-gradient(180deg, rgba(11, 9, 26, 0.9), rgba(13, 11, 25, 0.64));
+  transition: transform 220ms ease, border-color 220ms ease, box-shadow 220ms ease, background 220ms ease;
+}
+
+.section-orbit-node:hover,
+.section-orbit-node:focus-visible {
+  transform: scale(1.14);
+  border-color: rgba(0, 238, 255, 0.86);
+  box-shadow: 0 0 12px rgba(0, 238, 255, 0.38);
+}
+
+.section-orbit-node.is-active {
+  border-color: rgba(255, 143, 31, 0.94);
+  background: radial-gradient(circle at 30% 30%, rgba(255, 187, 112, 0.95), rgba(255, 91, 23, 0.74));
+  box-shadow: 0 0 16px rgba(255, 143, 31, 0.62), 0 0 22px rgba(0, 238, 255, 0.2);
+}
+
+.section-orbit-label {
+  position: absolute;
+  right: calc(100% + 14px);
+  top: 50%;
+  transform: translate3d(8px, -50%, 0);
+  opacity: 0;
+  pointer-events: none;
+  white-space: nowrap;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 238, 255, 0.32);
+  background: rgba(5, 4, 13, 0.82);
+  padding: 4px 8px;
+  font-family: "Share Tech Mono", monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: rgba(231, 241, 255, 0.9);
+  transition: opacity 220ms ease, transform 220ms ease, border-color 220ms ease, color 220ms ease;
+}
+
+.section-orbit-node:hover .section-orbit-label,
+.section-orbit-node:focus-visible .section-orbit-label,
+.section-orbit-node.is-active .section-orbit-label {
+  transform: translate3d(0, -50%, 0);
+  opacity: 1;
+}
+
+.section-orbit-node.is-active .section-orbit-label {
+  border-color: rgba(255, 143, 31, 0.52);
+  color: rgba(255, 204, 146, 0.96);
+}
+
+@media (max-width: 1279px) {
+  .section-orbit {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .section-orbit-progress,
+  .section-orbit-focus,
+  .section-orbit-node,
+  .section-orbit-label {
+    transition: none;
+  }
+}
+
 @layer components {
   .heading-xl {
     @apply font-orbitron text-4xl font-bold tracking-[0.08em] md:text-6xl;

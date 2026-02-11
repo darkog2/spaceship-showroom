@@ -161,10 +161,16 @@ const FEATURED_REPEAT = 5;
 const FEATURED_MAX_VELOCITY = 2.7;
 const FEATURED_MIN_VELOCITY = 0.022;
 const FEATURED_DECAY_PER_FRAME = 0.9;
-const PAGE_GLIDE_MAX = 38;
-const PAGE_GLIDE_GAIN = 0.06;
-const PAGE_GLIDE_DECAY = 0.82;
-const PAGE_GLIDE_MIN = 0.5;
+const quickNavSections = [
+  { id: 'home', label: 'Главная' },
+  { id: 'featured', label: 'Витрина' },
+  { id: 'catalog', label: 'Каталог' },
+  { id: 'about', label: 'Преимущества' },
+  { id: 'journey', label: 'Сценарии' },
+  { id: 'contact', label: 'Контакты' },
+] as const;
+
+type QuickNavSectionId = (typeof quickNavSections)[number]['id'];
 
 export default function App() {
   const [filteredShips, setFilteredShips] = useState<Ship[]>(ships);
@@ -178,6 +184,7 @@ export default function App() {
   const [checkoutDoneMessage, setCheckoutDoneMessage] = useState<string | null>(null);
   const [quickViewShip, setQuickViewShip] = useState<Ship | null>(null);
   const [activeManufacturer, setActiveManufacturer] = useState<Manufacturer | null>(null);
+  const [activeQuickNavSection, setActiveQuickNavSection] = useState<QuickNavSectionId>('home');
   const [checkoutForm, setCheckoutForm] = useState({
     destinationType: destinationHubs[0].type,
     destinationName: destinationHubs[0].name,
@@ -236,6 +243,7 @@ export default function App() {
     [checkoutForm.destinationType],
   );
   const overlayOpen = Boolean(selectedShip || quickViewShip || cartOpen || compareOpen || activeManufacturer);
+  const activeQuickNavIndex = Math.max(0, quickNavSections.findIndex((section) => section.id === activeQuickNavSection));
 
   const flashNotice = (message: string) => {
     if (noticeTimeoutRef.current !== null) {
@@ -253,6 +261,15 @@ export default function App() {
     if (section) {
       section.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
+  };
+
+  const scrollToQuickNavSection = (id: QuickNavSectionId) => {
+    const section = document.getElementById(id);
+    if (!section) {
+      return;
+    }
+    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setActiveQuickNavSection(id);
   };
 
   const focusManufacturer = (manufacturerId: string, shipToOpen?: Ship) => {
@@ -637,86 +654,50 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (overlayOpen) {
-      return;
-    }
-    if (!window.matchMedia('(pointer: fine)').matches) {
-      return;
-    }
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    const sectionNodes = quickNavSections
+      .map((section) => document.getElementById(section.id))
+      .filter((section): section is HTMLElement => Boolean(section));
+    if (sectionNodes.length === 0) {
       return;
     }
 
     let frameId: number | null = null;
-    let momentum = 0;
+    const updateActiveSection = () => {
+      const probe = window.scrollY + window.innerHeight * 0.42;
+      let currentId = sectionNodes[0].id as QuickNavSectionId;
 
-    const stopAnimation = () => {
+      for (const section of sectionNodes) {
+        if (probe >= section.offsetTop - 96) {
+          currentId = section.id as QuickNavSectionId;
+          continue;
+        }
+        break;
+      }
+
+      setActiveQuickNavSection((prev) => (prev === currentId ? prev : currentId));
+    };
+
+    const onScroll = () => {
+      if (frameId !== null) {
+        return;
+      }
+      frameId = requestAnimationFrame(() => {
+        frameId = null;
+        updateActiveSection();
+      });
+    };
+
+    updateActiveSection();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', updateActiveSection);
+    return () => {
       if (frameId !== null) {
         cancelAnimationFrame(frameId);
-        frameId = null;
       }
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', updateActiveSection);
     };
-
-    const hasScrollableAncestor = (element: HTMLElement | null) => {
-      let node = element;
-      while (node && node !== document.body) {
-        const styles = window.getComputedStyle(node);
-        const canScrollY =
-          (styles.overflowY === 'auto' || styles.overflowY === 'scroll') &&
-          node.scrollHeight > node.clientHeight + 1;
-        if (canScrollY) {
-          return true;
-        }
-        node = node.parentElement;
-      }
-      return false;
-    };
-
-    const animate = () => {
-      if (Math.abs(momentum) < PAGE_GLIDE_MIN) {
-        stopAnimation();
-        momentum = 0;
-        return;
-      }
-      window.scrollBy({ top: momentum, behavior: 'auto' });
-      momentum *= PAGE_GLIDE_DECAY;
-      frameId = requestAnimationFrame(animate);
-    };
-
-    const onWheel = (event: globalThis.WheelEvent) => {
-      if (event.defaultPrevented || event.ctrlKey) {
-        return;
-      }
-      const eventTarget = event.target as HTMLElement | null;
-      if (eventTarget?.closest('.featured-loop-track')) {
-        return;
-      }
-      if (eventTarget?.closest('input, textarea, select, [contenteditable="true"]')) {
-        return;
-      }
-      if (hasScrollableAncestor(eventTarget)) {
-        return;
-      }
-
-      const dominantDelta = Math.abs(event.deltaY) >= Math.abs(event.deltaX) ? event.deltaY : event.deltaX;
-      if (dominantDelta === 0) {
-        return;
-      }
-
-      const modeMultiplier = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1;
-      momentum += dominantDelta * modeMultiplier * PAGE_GLIDE_GAIN;
-      momentum = Math.max(-PAGE_GLIDE_MAX, Math.min(PAGE_GLIDE_MAX, momentum));
-      if (frameId === null) {
-        frameId = requestAnimationFrame(animate);
-      }
-    };
-
-    window.addEventListener('wheel', onWheel, { passive: true });
-    return () => {
-      stopAnimation();
-      window.removeEventListener('wheel', onWheel);
-    };
-  }, [overlayOpen]);
+  }, []);
 
   const handleFilter = (filteredShips: Ship[]) => {
     setFilteredShips(filteredShips);
@@ -845,7 +826,7 @@ export default function App() {
       <main className="pt-[72px]">
         <Hero onOpenFeaturedShip={(ship) => setSelectedShip(ship)} />
 
-        <section className="py-10 sm:py-14">
+        <section id="featured" className="py-10 sm:py-14">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mb-6 flex items-end justify-between gap-4">
               <div>
@@ -1061,7 +1042,7 @@ export default function App() {
           </div>
         </section>
 
-        <section className="py-16 sm:py-20">
+        <section id="manufacturers" className="py-16 sm:py-20">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mb-8 sm:mb-10">
               <p className="holo-pill mb-4">Производители</p>
@@ -1136,7 +1117,7 @@ export default function App() {
           </div>
         </section>
 
-        <section className="py-16 sm:py-20">
+        <section id="journey" className="py-16 sm:py-20">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mb-8 sm:mb-10">
               <p className="holo-pill mb-4">Сценарии</p>
@@ -1270,6 +1251,41 @@ export default function App() {
           </div>
         </section>
       </main>
+
+      {!overlayOpen && (
+        <nav className="section-orbit" aria-label="Быстрая навигация по разделам">
+          <div className="section-orbit-shell">
+            <div className="section-orbit-track">
+              <span className="section-orbit-line" aria-hidden="true" />
+              <span
+                className="section-orbit-progress"
+                aria-hidden="true"
+                style={{ height: `${8 + activeQuickNavIndex * 24}px` }}
+              />
+              <span
+                className="section-orbit-focus"
+                aria-hidden="true"
+                style={{ top: `${activeQuickNavIndex * 24 - 6}px` }}
+              />
+              {quickNavSections.map((section) => {
+                const isActive = section.id === activeQuickNavSection;
+                return (
+                  <button
+                    key={section.id}
+                    type="button"
+                    title={section.label}
+                    aria-current={isActive ? 'true' : undefined}
+                    onClick={() => scrollToQuickNavSection(section.id)}
+                    className={`section-orbit-node${isActive ? ' is-active' : ''}`}
+                  >
+                    <span className="section-orbit-label">{section.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </nav>
+      )}
 
       <Footer />
 
