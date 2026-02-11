@@ -17,7 +17,7 @@
           <div>
             <p className="font-oxanium text-lg uppercase tracking-[0.08em] text-cyan-holo">Каталог</p>
             <ul className="mt-3 space-y-2 font-rajdhani text-base text-text-light/70">
-              <li>Stealth-скиффы</li>
+              <li>Скрытные скиффы</li>
               <li>Экспедиционные поды</li>
               <li>Три-кабинные крейсеры</li>
             </ul>
@@ -26,7 +26,7 @@
           <div>
             <p className="font-oxanium text-lg uppercase tracking-[0.08em] text-cyan-holo">Сервис</p>
             <ul className="mt-3 space-y-2 font-rajdhani text-base text-text-light/70">
-              <li>Dock-консьерж</li>
+              <li>Док-консьерж</li>
               <li>Гарантийная поддержка</li>
               <li>Подготовка миссий</li>
             </ul>
@@ -41,7 +41,7 @@
 
         <div className="mt-8 flex flex-col gap-2 border-t border-cyan-holo/20 pt-6 font-rajdhani text-sm text-text-light/55 sm:flex-row sm:items-center sm:justify-between">
           <p>Copyright {currentYear} Void Hangar. Все права защищены.</p>
-          <p>Оптимизировано для desktop и mobile панелей управления.</p>
+          <p>Оптимизировано для настольных и мобильных панелей управления.</p>
         </div>
       </div>
     </footer>

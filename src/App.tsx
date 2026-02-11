@@ -1,6 +1,6 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import Footer from './components/Footer';
-import { useEffect, useMemo, useRef, type ChangeEvent, type FormEvent, type PointerEvent, type WheelEvent } from 'react';
+import { useEffect, useMemo, useRef, type ChangeEvent, type FormEvent, type MouseEvent as ReactMouseEvent, type PointerEvent, type WheelEvent } from 'react';
 import Hero from './components/Hero';
 import Navbar from './components/Navbar';
 import SectionOrbitNav from './components/SectionOrbitNav';
@@ -209,6 +209,12 @@ export default function App() {
     notes: '',
   });
   const featuredTrackRef = useRef<HTMLDivElement | null>(null);
+  const catalogGridRef = useRef<HTMLDivElement | null>(null);
+  const catalogStepLockRef = useRef(false);
+  const catalogStepUnlockTimerRef = useRef<number | null>(null);
+  const catalogStepLastDirRef = useRef<1 | -1 | 0>(0);
+  const catalogStepLastTimeRef = useRef(0);
+  const tiltHoverRef = useRef<HTMLElement | null>(null);
   const featuredPointerIdRef = useRef<number | null>(null);
   const featuredDragRef = useRef({
     active: false,
@@ -313,6 +319,48 @@ export default function App() {
         [shipId]: variantIndex,
       };
     });
+  };
+
+  const applyCardTilt = (element: HTMLElement, clientX: number, clientY: number, intensity = 1) => {
+    const rect = element.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) {
+      return;
+    }
+    const offsetX = (clientX - rect.left) / rect.width - 0.5;
+    const offsetY = (clientY - rect.top) / rect.height - 0.5;
+    const rotateX = -offsetY * 2.6 * intensity;
+    const rotateY = offsetX * 3.2 * intensity;
+    const shiftX = offsetX * 3.6 * intensity;
+    const shiftY = offsetY * 2.8 * intensity;
+    element.style.setProperty('--card-tilt-x', `${rotateX.toFixed(3)}deg`);
+    element.style.setProperty('--card-tilt-y', `${rotateY.toFixed(3)}deg`);
+    element.style.setProperty('--card-shift-x', `${shiftX.toFixed(3)}px`);
+    element.style.setProperty('--card-shift-y', `${shiftY.toFixed(3)}px`);
+  };
+
+  const resetCardTilt = (element: HTMLElement) => {
+    element.style.setProperty('--card-tilt-x', '0deg');
+    element.style.setProperty('--card-tilt-y', '0deg');
+    element.style.setProperty('--card-shift-x', '0px');
+    element.style.setProperty('--card-shift-y', '0px');
+  };
+
+  const onFeaturedCardMouseMove = (event: ReactMouseEvent<HTMLElement>) => {
+    applyCardTilt(event.currentTarget, event.clientX, event.clientY, 0.82);
+  };
+
+  const onFeaturedCardMouseLeave = (event: ReactMouseEvent<HTMLElement>) => {
+    resetCardTilt(event.currentTarget);
+  };
+
+  const applyHoverTilt = (element: HTMLElement, event: globalThis.PointerEvent) => {
+    const isButton = element.tagName === 'BUTTON';
+    const intensity = isButton ? 0.55 : 0.85;
+    applyCardTilt(element, event.clientX, event.clientY, intensity);
+  };
+
+  const resetHoverTilt = (element: HTMLElement) => {
+    resetCardTilt(element);
   };
 
   const clearManufacturerPreviewTimers = () => {
@@ -597,9 +645,99 @@ export default function App() {
     keepFeaturedLooped();
   };
 
+  const getCatalogStepTargets = (grid: HTMLDivElement) => {
+    const cards = Array.from(grid.children).filter(
+      (node): node is HTMLElement => node instanceof HTMLElement,
+    );
+    if (cards.length === 0) {
+      return [];
+    }
+
+    const uniqueTops: number[] = [];
+    for (const card of cards) {
+      const top = Math.round(card.getBoundingClientRect().top + window.scrollY);
+      if (!uniqueTops.some((value) => Math.abs(value - top) < 6)) {
+        uniqueTops.push(top);
+      }
+    }
+    uniqueTops.sort((a, b) => a - b);
+    return uniqueTops;
+  };
+
+  const onCatalogStepWheel = (event: WheelEvent<HTMLDivElement>) => {
+    if (window.innerWidth < 1280 || event.ctrlKey || event.metaKey || event.shiftKey) {
+      return;
+    }
+    const grid = catalogGridRef.current;
+    if (!grid || displayedShips.length < 4) {
+      return;
+    }
+
+    const delta = Math.abs(event.deltaY) >= Math.abs(event.deltaX) ? event.deltaY : event.deltaX;
+    if (Math.abs(delta) < 8) {
+      return;
+    }
+
+    const direction: 1 | -1 = delta > 0 ? 1 : -1;
+    const now = performance.now();
+    if (catalogStepLockRef.current) {
+      const lastDir = catalogStepLastDirRef.current;
+      const elapsed = now - catalogStepLastTimeRef.current;
+      if (lastDir !== 0 && lastDir !== direction && elapsed > 140) {
+        catalogStepLockRef.current = false;
+      } else {
+        event.preventDefault();
+        return;
+      }
+    }
+
+    const targets = getCatalogStepTargets(grid);
+    if (targets.length < 2) {
+      return;
+    }
+
+    const headerOffset = 104;
+    const probeY = window.scrollY + headerOffset;
+    let currentIndex = 0;
+    for (let index = 0; index < targets.length; index += 1) {
+      if (probeY >= targets[index] - 2) {
+        currentIndex = index;
+      } else {
+        break;
+      }
+    }
+
+    const nextIndex = Math.max(0, Math.min(targets.length - 1, currentIndex + direction));
+    if (nextIndex === currentIndex) {
+      return;
+    }
+
+    event.preventDefault();
+    catalogStepLockRef.current = true;
+    catalogStepLastDirRef.current = direction;
+    catalogStepLastTimeRef.current = now;
+    window.scrollTo({
+      top: Math.max(0, targets[nextIndex] - headerOffset),
+      behavior: 'smooth',
+    });
+
+    if (catalogStepUnlockTimerRef.current !== null) {
+      clearTimeout(catalogStepUnlockTimerRef.current);
+    }
+    catalogStepUnlockTimerRef.current = window.setTimeout(() => {
+      catalogStepLockRef.current = false;
+      catalogStepUnlockTimerRef.current = null;
+      catalogStepLastDirRef.current = 0;
+    }, 520);
+  };
+
   useEffect(() => {
     return () => {
       stopFeaturedInertia();
+      if (catalogStepUnlockTimerRef.current !== null) {
+        clearTimeout(catalogStepUnlockTimerRef.current);
+        catalogStepUnlockTimerRef.current = null;
+      }
       clearManufacturerPreviewTimers();
       if (noticeTimeoutRef.current !== null) {
         clearTimeout(noticeTimeoutRef.current);
@@ -666,6 +804,56 @@ export default function App() {
   }, [activeManufacturer, cartOpen, compareOpen, manufacturerFocusId, quickViewShip, selectedShip, visibleShipPool]);
 
   useEffect(() => {
+    const onPointerMove = (event: globalThis.PointerEvent) => {
+      if (event.pointerType === 'touch') {
+        return;
+      }
+      const target = event.target as HTMLElement | null;
+      if (!target) {
+        return;
+      }
+      if (target.closest('.card-tilt-reactive')) {
+        return;
+      }
+      const next = target.closest('button, .panel-shell') as HTMLElement | null;
+      if (!next) {
+        if (tiltHoverRef.current) {
+          tiltHoverRef.current.classList.remove('tilt-hover');
+          resetHoverTilt(tiltHoverRef.current);
+          tiltHoverRef.current = null;
+        }
+        return;
+      }
+
+      if (tiltHoverRef.current !== next) {
+        if (tiltHoverRef.current) {
+          tiltHoverRef.current.classList.remove('tilt-hover');
+          resetHoverTilt(tiltHoverRef.current);
+        }
+        tiltHoverRef.current = next;
+        next.classList.add('tilt-hover');
+      }
+
+      applyHoverTilt(next, event);
+    };
+
+    const onPointerLeave = () => {
+      if (tiltHoverRef.current) {
+        tiltHoverRef.current.classList.remove('tilt-hover');
+        resetHoverTilt(tiltHoverRef.current);
+        tiltHoverRef.current = null;
+      }
+    };
+
+    document.addEventListener('pointermove', onPointerMove);
+    document.addEventListener('pointerleave', onPointerLeave);
+    return () => {
+      document.removeEventListener('pointermove', onPointerMove);
+      document.removeEventListener('pointerleave', onPointerLeave);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!overlayOpen) {
       return;
     }
@@ -687,8 +875,11 @@ export default function App() {
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     sections.forEach((section, index) => {
       section.classList.add('flow-section');
-      section.style.setProperty('--flow-delay', `${Math.min(index * 55, 260)}ms`);
-      if (index === 0) {
+      if (index > 0 && !section.classList.contains('featured-seam-glow')) {
+        section.classList.add('flow-divider');
+      }
+      section.style.setProperty('--flow-delay', `${index <= 1 ? 0 : Math.min(index * 55, 260)}ms`);
+      if (index <= 1) {
         section.classList.add('flow-section-visible');
       }
     });
@@ -697,7 +888,7 @@ export default function App() {
       sections.forEach((section) => section.classList.add('flow-section-visible'));
       return () => {
         sections.forEach((section) => {
-          section.classList.remove('flow-section', 'flow-section-visible');
+          section.classList.remove('flow-section', 'flow-section-visible', 'flow-divider');
           section.style.removeProperty('--flow-delay');
         });
       };
@@ -712,8 +903,8 @@ export default function App() {
         });
       },
       {
-        threshold: 0.18,
-        rootMargin: '0px 0px -10% 0px',
+        threshold: 0.12,
+        rootMargin: '0px 0px -8% 0px',
       },
     );
 
@@ -721,7 +912,7 @@ export default function App() {
     return () => {
       observer.disconnect();
       sections.forEach((section) => {
-        section.classList.remove('flow-section', 'flow-section-visible');
+        section.classList.remove('flow-section', 'flow-section-visible', 'flow-divider');
         section.style.removeProperty('--flow-delay');
       });
     };
@@ -918,21 +1109,19 @@ export default function App() {
       <main className="pt-[72px]">
         <Hero onOpenFeaturedShip={(ship) => setSelectedShip(ship)} />
 
-        <section id="featured" className="py-10 sm:py-14">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <section id="featured" className="section-seam-soften featured-seam-glow featured-panel-backdrop py-10 sm:py-14">
+          <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mb-6 flex items-end justify-between gap-4">
               <div>
-                <p className="holo-pill mb-3">Витрина магазина</p>
                 <h2 className="heading-lg">Лучшие предложения</h2>
               </div>
             </div>
-
-            <div className="relative space-bg p-3 sm:p-4">
+            <div className="featured-orbit-glow relative space-bg p-3 sm:p-4">
               <button
                 type="button"
                 aria-label="Предыдущие предложения"
                 onClick={() => scrollFeatured(-1)}
-                className="absolute left-1 top-1/2 z-20 -translate-y-1/2 rounded-full border border-cyan-holo/30 bg-dark-navy/30 p-2.5 text-cyan-holo/85 backdrop-blur-lg transition hover:border-amber-ui/65 hover:bg-dark-navy/45 hover:text-amber-ui sm:left-2"
+                className="absolute left-1 top-1/2 z-20 -translate-y-1/2 rounded-full border border-cyan-holo/40 bg-dark-navy/60 p-2.5 text-cyan-holo/90 backdrop-blur-md transition hover:border-amber-ui/80 hover:bg-dark-navy/70 hover:text-amber-ui hover:shadow-[0_0_20px_rgba(255,80,40,0.5)] sm:left-2"
               >
                 <ChevronLeft size={18} />
               </button>
@@ -940,14 +1129,13 @@ export default function App() {
                 type="button"
                 aria-label="Следующие предложения"
                 onClick={() => scrollFeatured(1)}
-                className="absolute right-1 top-1/2 z-20 -translate-y-1/2 rounded-full border border-cyan-holo/30 bg-dark-navy/30 p-2.5 text-cyan-holo/85 backdrop-blur-lg transition hover:border-amber-ui/65 hover:bg-dark-navy/45 hover:text-amber-ui sm:right-2"
+                className="absolute right-1 top-1/2 z-20 -translate-y-1/2 rounded-full border border-cyan-holo/40 bg-dark-navy/60 p-2.5 text-cyan-holo/90 backdrop-blur-md transition hover:border-amber-ui/80 hover:bg-dark-navy/70 hover:text-amber-ui hover:shadow-[0_0_20px_rgba(255,80,40,0.5)] sm:right-2"
               >
                 <ChevronRight size={18} />
               </button>
-
               <div
                 ref={featuredTrackRef}
-                className="featured-loop-track flex cursor-grab gap-4 overflow-x-auto px-10 pb-2 pr-2 select-none [scrollbar-width:none] active:cursor-grabbing sm:px-12 [&::-webkit-scrollbar]:hidden"
+                className="featured-loop-track flex cursor-grab gap-4 overflow-x-auto px-10 pb-3 pr-2 pt-2 select-none [scrollbar-width:none] active:cursor-grabbing sm:px-12 [&::-webkit-scrollbar]:hidden"
                 onPointerDown={onFeaturedPointerDown}
                 onPointerMove={onFeaturedPointerMove}
                 onPointerUp={onFeaturedPointerUp}
@@ -965,7 +1153,9 @@ export default function App() {
                     <article
                       key={key}
                       data-ship-id={ship.id}
-                      className="panel-shell min-w-[288px] cursor-pointer p-4 transition duration-300 hover:-translate-y-1 sm:min-w-[330px]"
+                      className="panel-shell card-tilt-reactive min-w-[288px] cursor-pointer p-4 transition duration-300 sm:min-w-[330px]"
+                      onMouseMove={onFeaturedCardMouseMove}
+                      onMouseLeave={onFeaturedCardMouseLeave}
                     >
                       <div className="zoomable relative h-44 overflow-hidden rounded-xl">
                         <img src={featuredImage} alt={ship.name} className="h-full w-full object-cover" draggable={false} />
@@ -987,10 +1177,10 @@ export default function App() {
                                       setFeaturedVariant(ship.id, idx);
                                     }}
                                     onMouseEnter={() => setFeaturedVariant(ship.id, idx)}
-                                    className={`h-3.5 w-3.5 rounded-full border transition ${
+                                    className={`h-3.5 w-3.5 rounded-full border-2 transition ${
                                       idx === activeVariant
-                                        ? 'border-amber-ui bg-amber-ui/45'
-                                        : 'border-cyan-holo/40 bg-cyan-holo/16'
+                                        ? 'border-amber-ui bg-amber-ui/60 shadow-[0_0_12px_rgba(255,80,40,0.7)]'
+                                        : 'border-cyan-holo/50 bg-cyan-holo/20'
                                     }`}
                                     aria-label={`Цвет ${idx + 1}`}
                                   />
@@ -1003,61 +1193,45 @@ export default function App() {
                         <p className="mt-1 font-rajdhani text-sm text-text-light/70">
                           {classLabels[ship.class]} / Экипаж {ship.crewMin}-{ship.crewMax}
                         </p>
-                        <p className="mt-2 rounded-md border border-cyan-holo/20 bg-dark-navy/42 px-2.5 py-1.5 font-rajdhani text-sm leading-snug text-text-light/68">
+                        <p className="mt-2 rounded-md border border-cyan-holo/25 bg-dark-navy/50 px-2.5 py-1.5 font-rajdhani text-sm leading-snug text-text-light/72">
                           {compactDescription}
                         </p>
-                      <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
-                        <p className="font-orbitron text-3xl text-amber-ui">${(ship.priceUsd / 1000).toFixed(0)}K</p>
-                        <div className="group relative flex flex-wrap items-center gap-2 sm:justify-end">
-                          <button
-                            type="button"
-                            className="rounded-md border border-text-light/25 px-3 py-1 font-mono text-[11px] uppercase tracking-[0.12em] text-text-light/80 transition hover:border-amber-ui/40 hover:text-amber-ui"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              setSelectedShip(ship);
-                            }}
-                          >
-                            Открыть
-                          </button>
-                          <button
-                            type="button"
-                            className="rounded-md border border-cyan-holo/40 px-3 py-1 font-mono text-[11px] uppercase tracking-[0.12em] text-cyan-holo transition hover:border-cyan-holo/70"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              setQuickViewShip(ship);
-                            }}
-                          >
-                            Быстрый
-                          </button>
-                          <button
-                            type="button"
-                            className="rounded-md border border-amber-ui/45 px-3 py-1 font-mono text-[11px] uppercase tracking-[0.12em] text-amber-ui transition hover:border-amber-ui/70"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              addToCart(ship);
-                            }}
-                          >
-                            В корзину
-                          </button>
-                          <div className="pointer-events-none absolute bottom-full left-1/2 z-20 w-52 -translate-x-1/2 translate-y-2 opacity-0 transition group-hover:translate-y-0 group-hover:opacity-100 sm:w-56">
-                            <div className="rounded-xl border border-cyan-holo/35 bg-dark-navy/95 p-2 shadow-[0_16px_40px_rgba(6,4,15,0.65)]">
-                              <div className="flex items-center gap-2">
-                                <img src={featuredImage} alt={ship.name} className="h-14 w-20 rounded-lg object-cover" />
-                                <div>
-                                  <p className="font-orbitron text-sm uppercase tracking-[0.08em] text-text-light">{ship.name}</p>
-                                  <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-light/60">
-                                    {classLabels[ship.class]} / {ship.crewMin}-{ship.crewMax}
-                                  </p>
-                                  <p className="mt-1 font-orbitron text-base text-amber-ui">
-                                    ${(ship.priceUsd / 1000).toFixed(0)}K
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
+                        <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
+                          <p className="font-orbitron text-3xl text-amber-ui">${(ship.priceUsd / 1000).toFixed(0)}K</p>
+                          <div className="grid grid-cols-2 gap-2 sm:justify-items-end">
+                            <button
+                              type="button"
+                              className="col-start-1 row-start-2 rounded-md border border-text-light/30 px-3 py-1 font-mono text-[11px] uppercase tracking-[0.12em] text-text-light/85 transition hover:border-amber-ui/55 hover:text-amber-ui"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setSelectedShip(ship);
+                              }}
+                            >
+                              Открыть
+                            </button>
+                            <button
+                              type="button"
+                              className="col-span-2 row-start-1 justify-self-end rounded-md border border-cyan-holo/50 px-3 py-1 font-mono text-[11px] uppercase tracking-[0.12em] text-cyan-holo transition hover:border-cyan-holo/80 sm:col-span-1 sm:col-start-2"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setQuickViewShip(ship);
+                              }}
+                            >
+                              Быстрый
+                            </button>
+                            <button
+                              type="button"
+                              className="col-start-2 row-start-2 rounded-md border border-amber-ui/55 px-3 py-1 font-mono text-[11px] uppercase tracking-[0.12em] text-amber-ui transition hover:border-amber-ui/85 hover:bg-amber-ui/10"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                addToCart(ship);
+                              }}
+                            >
+                              В корзину
+                            </button>
                           </div>
                         </div>
                       </div>
-                    </div>
                     </article>
                   );
                 })}
@@ -1069,11 +1243,10 @@ export default function App() {
         <section id="catalog" className="py-16 sm:py-20">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mb-8 sm:mb-10">
-              <p className="holo-pill mb-4">Каталог флота</p>
               <h2 className="heading-lg text-text-light">Доступные корабли</h2>
               <p className="soft-copy mt-3 max-w-3xl font-rajdhani text-xl leading-relaxed">
-                Открывайте карточки, сравнивайте ключевые параметры и сразу переходите к детальным спецификациям,
-                фичам и пакетам комплектаций.
+                Погружайтесь в карточки, сравнивайте ключевые параметры и мгновенно переходите к детальным
+                характеристикам, уникальным возможностям и эксклюзивным комплектациям.
               </p>
             </div>
 
@@ -1098,7 +1271,11 @@ export default function App() {
             )}
 
             {displayedShips.length > 0 ? (
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+              <div
+                ref={catalogGridRef}
+                onWheel={onCatalogStepWheel}
+                className="catalog-step-grid grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3"
+              >
                 {displayedShips.map((ship) => (
                   <ShipCard
                     key={ship.id}
@@ -1117,7 +1294,7 @@ export default function App() {
               <div className="panel-shell p-8 text-center">
                 <p className="font-rajdhani text-2xl text-text-light/80">Под текущие фильтры модели не найдены.</p>
                 <p className="mt-2 font-rajdhani text-lg text-text-light/60">
-                  Сбросьте фильтры, чтобы снова увидеть весь каталог.
+                  Сбросьте фильтры - каталог снова откроется полностью.
                 </p>
                 {manufacturerFocusId && (
                   <button
@@ -1136,35 +1313,34 @@ export default function App() {
         <section id="about" className="py-16 sm:py-20">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mb-8 sm:mb-10">
-              <p className="holo-pill mb-4">Преимущества</p>
               <h2 className="heading-lg text-text-light">Почему выбирают Void Hangar</h2>
             </div>
 
             <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
               <article className="panel-shell p-6">
                 <p className="font-mono text-2xl text-amber-ui">01</p>
-                <h3 className="mt-3 font-oxanium text-2xl uppercase tracking-[0.08em] text-text-light">Точная сборка</h3>
+                <h3 className="mt-3 font-oxanium text-2xl uppercase tracking-[0.08em] text-text-light">Безупречная сборка</h3>
                 <p className="mt-3 font-rajdhani text-lg text-text-light/70">
-                  Каждый корабль проходит многоступенчатую проверку систем, включая диагностику тяги,
-                  защитных модулей и автопилота.
+                  Каждый корабль проходит жесткий многоэтапный контроль: от диагностики двигателей и щитов
+                  до финальной настройки автопилота.
                 </p>
               </article>
 
               <article className="panel-shell p-6">
                 <p className="font-mono text-2xl text-amber-ui">02</p>
-                <h3 className="mt-3 font-oxanium text-2xl uppercase tracking-[0.08em] text-text-light">Премиум UX кокпита</h3>
+                <h3 className="mt-3 font-oxanium text-2xl uppercase tracking-[0.08em] text-text-light">Кокпит будущего</h3>
                 <p className="mt-3 font-rajdhani text-lg text-text-light/70">
-                  Гибкие голографические интерфейсы, адаптивная подсветка и логика управления,
-                  рассчитанная на длительные полеты.
+                  Адаптивные голографические панели, умная подсветка и эргономика,
+                  созданная для долгих и комфортных перелетов.
                 </p>
               </article>
 
               <article className="panel-shell p-6">
                 <p className="font-mono text-2xl text-amber-ui">03</p>
-                <h3 className="mt-3 font-oxanium text-2xl uppercase tracking-[0.08em] text-text-light">Поддержка на годы</h3>
+                <h3 className="mt-3 font-oxanium text-2xl uppercase tracking-[0.08em] text-text-light">Поддержка без ограничений</h3>
                 <p className="mt-3 font-rajdhani text-lg text-text-light/70">
-                  Сервисные пакеты, удаленный мониторинг и выделенная инженерная линия поддержки
-                  в режиме 24/7.
+                  Сервисные пакеты, постоянный удаленный мониторинг и выделенная инженерная линия -
+                  круглосуточно, всегда на связи.
                 </p>
               </article>
             </div>
@@ -1174,10 +1350,9 @@ export default function App() {
         <section id="manufacturers" className="py-16 sm:py-20">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mb-8 sm:mb-10">
-              <p className="holo-pill mb-4">Производители</p>
-              <h2 className="heading-lg text-text-light">Корпорации и верфи</h2>
+              <h2 className="heading-lg text-text-light">Корпорации и верфи - легендарные создатели</h2>
               <p className="soft-copy mt-3 max-w-3xl font-rajdhani text-xl leading-relaxed">
-                Нажмите на корпорацию, чтобы открыть профиль верфи и увидеть, какие серии она ведет в текущем сезоне.
+                Нажмите на корпорацию, чтобы открыть профиль верфи и увидеть, какие серии она выпускает в этом сезоне.
               </p>
             </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -1232,11 +1407,10 @@ export default function App() {
         <section className="py-8 sm:py-12">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mb-8 sm:mb-10">
-              <p className="holo-pill mb-4">Лор системы</p>
-              <h2 className="heading-lg text-text-light">Как устроен рынок полетов в Sol-Transit</h2>
+              <h2 className="heading-lg text-text-light">Как работает рынок полетов Sol-Transit</h2>
               <p className="soft-copy mt-3 max-w-4xl font-rajdhani text-xl leading-relaxed">
-                Каждая модель в каталоге привязана к реальной сети доков, страховых протоколов и коридоров навигации.
-                Поэтому карточки отражают не только стиль, но и эксплуатационную экономику.
+                Каждая модель в каталоге привязана к реальным докам, страховым коридорам и навигационным маршрутам.
+                Поэтому карточки показывают не только дизайн, но и реальную эксплуатационную экономику.
               </p>
             </div>
             <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
@@ -1253,8 +1427,7 @@ export default function App() {
         <section id="journey" className="py-16 sm:py-20">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mb-8 sm:mb-10">
-              <p className="holo-pill mb-4">Сценарии</p>
-              <h2 className="heading-lg text-text-light">Под какие задачи подойдут модели</h2>
+              <h2 className="heading-lg text-text-light">Под какие миссии лучше всего подойдут модели</h2>
             </div>
 
             <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
@@ -1278,8 +1451,7 @@ export default function App() {
         <section className="py-16 sm:py-20">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mb-8 sm:mb-10">
-              <p className="holo-pill mb-4">Процесс</p>
-              <h2 className="heading-lg text-text-light">Как проходит покупка</h2>
+              <h2 className="heading-lg text-text-light">Как проходит сделка</h2>
             </div>
 
             <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
@@ -1297,7 +1469,6 @@ export default function App() {
         <section className="py-16 sm:py-20">
           <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
             <div className="mb-8 text-center">
-              <p className="holo-pill mb-4">Частые вопросы</p>
               <h2 className="heading-lg text-text-light">Частые вопросы</h2>
             </div>
 
@@ -1317,7 +1488,6 @@ export default function App() {
         <section id="contact" className="pb-16 pt-10 sm:pb-20 sm:pt-14">
           <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
             <div className="mb-8 text-center">
-              <p className="holo-pill mb-4">Связь с доком</p>
               <h2 className="heading-lg text-text-light">Оставить заявку</h2>
             </div>
 
@@ -1376,7 +1546,7 @@ export default function App() {
                 <p className="font-mono text-sm uppercase tracking-[0.12em] text-cyan-holo">+1 (800) 555-ORBIT</p>
                 <div className="rounded-lg border border-cyan-holo/25 bg-dark-navy/35 p-4">
                   <p className="font-rajdhani text-lg text-text-light/72">
-                    Ответ менеджера: обычно в течение 30 минут в рабочее время.
+                    Менеджер отвечает обычно в течение 30 минут в рабочее время.
                   </p>
                 </div>
               </aside>
@@ -1785,3 +1955,4 @@ export default function App() {
     </div>
   );
 }
+

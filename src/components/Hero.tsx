@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowDownRight, Radar, Sparkles } from 'lucide-react';
+import { ArrowDownRight, Sparkles } from 'lucide-react';
 import { Ship, ships } from '../data/ships';
 
 interface HeroProps {
@@ -46,43 +46,40 @@ export default function Hero({ onOpenFeaturedShip }: HeroProps) {
   };
 
   return (
-    <section id="home" className="relative overflow-hidden pb-16 pt-14 md:pt-20">
+    <section id="home" className="relative overflow-hidden pb-16 pt-20 md:pt-28">
       <div className="pointer-events-none absolute inset-0 z-0">
         <div
-          className="absolute inset-x-0 top-0 h-[76%] opacity-35"
+          className="absolute inset-0 opacity-38"
           style={{
             backgroundImage: `url('${ambienceFrames[activeFrame]}')`,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
           }}
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-dark-navy/20 via-dark-navy/88 to-dark-navy" />
+        <div className="absolute inset-0 bg-gradient-to-b from-dark-navy/24 via-dark-navy/68 to-dark-navy/50" />
+        <div className="absolute inset-y-0 left-0 w-[60%] bg-gradient-to-r from-dark-navy/78 via-dark-navy/56 to-transparent" />
+        <div className="absolute inset-y-0 left-0 w-[44%] bg-[radial-gradient(circle_at_18%_36%,rgba(8,6,18,0.72),transparent_72%)]" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_14%,rgba(169,125,255,0.26),transparent_44%),radial-gradient(circle_at_82%_10%,rgba(255,143,31,0.18),transparent_38%)]" />
       </div>
 
-      <div className="relative z-10 mx-auto grid max-w-7xl grid-cols-1 gap-8 px-4 sm:px-6 lg:grid-cols-5 lg:items-end lg:gap-10 lg:px-8">
-        <div className="lg:col-span-2">
-          <div className="mb-5 flex flex-wrap items-center gap-3">
-            <span className="holo-pill">
-              <Radar size={13} /> Магазин орбитальной техники
-            </span>
-          </div>
+      <div className="relative z-10 mx-auto grid max-w-7xl grid-cols-1 gap-8 px-4 sm:px-6 lg:grid-cols-12 lg:items-end lg:gap-8 xl:gap-10 lg:px-8">
+        <div className="hero-copy-shell lg:col-span-6 p-3 sm:p-4 lg:p-4">
 
-          <h1 className="heading-xl leading-[1.04] text-text-light">
+          <h1 className="font-orbitron text-[clamp(2.35rem,4vw,4.65rem)] font-bold leading-[1] tracking-[0.03em] text-text-light drop-shadow-[0_12px_24px_rgba(5,3,12,0.8)]">
             Корабль под миссию.
             <br />
-            <span className="text-amber-ui">Сделка под ключ.</span>
+            <span className="text-amber-ui drop-shadow-[0_6px_16px_rgba(255,80,40,0.35)]">Сделка под ключ.</span>
           </h1>
-          <p className="mt-3 font-oxanium text-sm uppercase tracking-[0.2em] text-cyan-holo sm:text-base">
+          <p className="mt-2 font-oxanium text-sm uppercase tracking-[0.13em] text-cyan-holo drop-shadow-[0_4px_12px_rgba(0,0,0,0.7)] sm:text-base">
             Void Hangar — торговый док премиальных кораблей Sol-Transit
           </p>
 
-          <p className="soft-copy mt-5 max-w-xl font-rajdhani text-xl leading-relaxed">
+          <p className="soft-copy mt-4 max-w-none font-rajdhani text-lg leading-relaxed text-text-light/90 drop-shadow-[0_4px_14px_rgba(4,3,10,0.78)] sm:text-[1.2rem]">
             Премиальный док-рум с настоящими конфигурациями: городские рейсы, экспедиции и элитные маршруты.
             Вся навигация, цены и комплектации — прозрачно и без лишнего шума.
           </p>
 
-          <div className="mt-7 flex flex-col gap-4 sm:flex-row">
+          <div className="mt-5 flex flex-col gap-4 sm:flex-row">
             <button className="btn-primary" onClick={() => jumpTo('catalog')} type="button">
               В КАТАЛОГ <ArrowDownRight size={16} />
             </button>
@@ -91,24 +88,24 @@ export default function Hero({ onOpenFeaturedShip }: HeroProps) {
             </button>
           </div>
 
-          <div className="mt-7 grid grid-cols-3 gap-3">
-            <div className="panel-shell p-4">
+          <div className="mt-5 grid grid-cols-3 gap-3">
+            <div className="panel-shell p-3 sm:p-4">
               <p className="spec-text">{ships.length}</p>
               <p className="mt-1 font-rajdhani text-sm uppercase tracking-[0.08em] text-text-light/65">Моделей</p>
             </div>
-            <div className="panel-shell p-4">
+            <div className="panel-shell p-3 sm:p-4">
               <p className="spec-text">{inStockCount}</p>
               <p className="mt-1 font-rajdhani text-sm uppercase tracking-[0.08em] text-text-light/65">В наличии</p>
             </div>
-            <div className="panel-shell p-4">
+            <div className="panel-shell p-3 sm:p-4">
               <p className="spec-text">24/7</p>
               <p className="mt-1 font-rajdhani text-sm uppercase tracking-[0.08em] text-text-light/65">Поддержка</p>
             </div>
           </div>
         </div>
 
-        <div className="lg:col-span-3">
-          <article className="panel-shell cursor-pointer overflow-hidden p-3" onClick={() => onOpenFeaturedShip(featuredShip)}>
+        <div className="lg:col-span-6">
+          <article className="panel-shell hero-feature-shell cursor-pointer overflow-hidden p-3" onClick={() => onOpenFeaturedShip(featuredShip)}>
             <div
               className="zoomable relative h-[330px] overflow-hidden rounded-xl sm:h-[430px] lg:h-[500px]"
               onMouseMove={(event) => {
@@ -170,3 +167,4 @@ export default function Hero({ onOpenFeaturedShip }: HeroProps) {
     </section>
   );
 }
+

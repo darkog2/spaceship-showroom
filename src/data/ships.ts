@@ -9,59 +9,67 @@
 export const manufacturers: Manufacturer[] = [
   {
     id: 'forge-dynamics',
-    name: 'Forge Dynamics Stellar Foundry Consortium',
+    name: 'Stellar Forge Dominion',
     short: 'FDC',
     origin: 'Io Foundry Ring, Jovian Belt',
-    summary: 'Силовые установки и жаростойкие каркасы для плазменных зон, тяжелых доков и дальних перелетов.',
+    summary:
+      'Легендарные кузнецы космоса: варят силовые установки и жаростойкие каркасы, способные выдержать плазменный ад.',
   },
   {
     id: 'veil-systems',
-    name: 'Veil Systems Interplanetary Directorate',
+    name: 'Veil Shadow Directorate',
     short: 'VSB',
     origin: 'Neo-Tokyo Orbital Directorate',
-    summary: 'Лидеры stealth-платформ, тихих запусков и глубокой калибровки бортовой электроники класса Blackline.',
+    summary:
+      'Мастера невидимости: stealth-технологии, бесшумные запуски и электроника Blackline-класса для деликатных миссий.',
   },
   {
     id: 'aether-motors',
-    name: 'Aether Motors Civic Aerospace Consortium',
+    name: 'Aether Civic Consortium',
     short: 'AM',
     origin: 'Cydonia Urban Belt, Mars',
-    summary: 'Городской и орбитальный премиум-сегмент с высокой ремонтопригодностью и сертификацией Civic-A.',
+    summary:
+      'Городские аристократы космоса: премиум-полеты с высокой ремонтопригодностью и надежной сертификацией Civic-A.',
   },
   {
     id: 'nova-works',
-    name: 'Nova Works Frontier Heavy Industries Group',
+    name: 'Nova Frontier Legion',
     short: 'NWH',
     origin: 'Titan Dockline, Saturnian Sector',
-    summary: 'Экспедиционные корабли с усиленной рамой и ресурсным циклом под длительные автономные миссии.',
+    summary:
+      'Тяжелая кавалерия экспедиций: усиленные рамы и ресурсные циклы для миссий, где "домой" - очень дальняя точка.',
   },
   {
     id: 'lumen-craft',
-    name: 'Lumen Craft Executive Aerospace Atelier',
+    name: 'Lumen Lux Atelier',
     short: 'LCA',
     origin: 'Lagrange Lux Habitat-5',
-    summary: 'Люксовые корабли с акустическим комфортом, тонкой отделкой и приоритетом статусного дизайна.',
+    summary:
+      'Элитные ювелиры космоса: акустический комфорт, тонкая отделка и статусный дизайн для приватных перелетов.',
   },
   {
     id: 'kite-aero',
-    name: 'Kite Aero Defense & Security Command',
+    name: 'Kite Defense Vanguard',
     short: 'KAD',
     origin: 'Ares Frontier Command, Mars',
-    summary: 'Патрульные и тактические платформы с быстрым выводом в готовность и усиленной сенсорикой.',
+    summary:
+      'Боевые стражи: мгновенная готовность и усиленная сенсорика для патруля и защиты критичных маршрутов.',
   },
   {
     id: 'helios-aero',
-    name: 'Helios Aero Mobility Transit Corporation',
+    name: 'Helios Transit Armada',
     short: 'HAM',
     origin: 'Helix Valley Arcology, Luna',
-    summary: 'Гражданские skiff и shuttle-линейки для комфортных маршрутов в атмосфере и на низкой орбите.',
+    summary:
+      'Народные перевозчики: комфортные скиффы и шаттлы для атмосферы и низкой орбиты - надежно и без лишнего пафоса.',
   },
   {
     id: 'xeno-prime',
-    name: 'Xeno Prime Bioadaptive Systems Syndicate',
+    name: 'Xeno Rift Syndicate',
     short: 'XPS',
     origin: 'Umbra Rift Cluster, Outer Sol',
-    summary: 'Ксенотехнологические серии с биоморфными корпусами и экспериментальной veil-навигацией.',
+    summary:
+      'Безумные гении ксенотехнологий: биоморфные корпуса и экспериментальная навигация для нестандартных направлений.',
   },
 ];
 
@@ -127,7 +135,7 @@ export const ships: Ship[] = [
     images: ['/ships/orion-x9.png'],
     trims: buildTrims(690000, 'Стелс-магистраль VeilDrive'),
     description:
-      'Флагманский три-кабинный экспедиционный корабль для дальних маршрутов и корпоративных миссий, рассчитанный на 2-3 экипажа и долгий ресурсный цикл.',
+      'Флагманский три-кабинный экспедиционник для дальних маршрутов и корпоративных миссий - мощный и надежный.',
   },
   {
     id: 'nox-3-spectre',
@@ -144,7 +152,7 @@ export const ships: Ship[] = [
     images: ['/ships/nox-3-spectre.png'],
     trims: buildTrims(520000, 'Усилитель бесшумного плаща'),
     description:
-      'Стелс-скифф для скрытных миссий и приватных перелетов, с биомеханической тягой и минимальным акустическим профилем.',
+      'Скифф скрытности для тайных операций - исчезает с радаров быстрее, чем пират с добычей.',
   },
   {
     id: 'nyx-skiff-s2',
@@ -158,10 +166,10 @@ export const ships: Ship[] = [
     priceUsd: 330000,
     badges: ['CERTIFIED'],
     specs: { rangeKm: 780, cruiseKmS: 21, launchReadyMin: 8, hull: 'Carbon-Titan', noise: 'Low' },
-    features: ['Двухместный lounge-кокпит', 'Storm-glass экраны', 'Режим аварийного планирования'],
+    features: ['Двухместный салон-люкс', 'Экраны Storm-glass', 'Режим аварийного планирования'],
     images: ['/ships/nyx-skiff-s2.png'],
     trims: buildTrims(330000, 'Storm-щит нового поколения'),
-    description: 'Сертифицированный двухместный skiff для городских и межпланетных перелетов с мягкой динамикой тяги.',
+    description: 'Сертифицированный дуо-скифф для городских рейсов - комфортный и маневренный.',
   },
   {
     id: 'nyx-skiff-s2-rival',
@@ -175,11 +183,10 @@ export const ships: Ship[] = [
     priceUsd: 347000,
     badges: ['NEW DROP'],
     specs: { rangeKm: 810, cruiseKmS: 22, launchReadyMin: 7, hull: 'Carbon-Titan', noise: 'Low' },
-    features: ['Альтернативная компоновка корпуса', 'Улучшенная курсовая стабилизация', 'Городской rain-dock пакет'],
+    features: ['Альтернативная компоновка корпуса', 'Улучшенная курсовая стабилизация', 'Пакет для дождливых доков'],
     images: ['/ships/nyx-skiff-s2-blue.png'],
     trims: buildTrims(347000, 'Rival-series aero kit'),
-    description:
-      'Конкурирующий релиз NYX Skiff S2 с иным профилем корпуса, более жесткой подвеской и акцентом на маневренность.',
+    description: 'Еще один NYX S2 - с жесткой подвеской и акцентом на скорость.',
   },
   {
     id: 'ardus-suntalon',
@@ -192,10 +199,10 @@ export const ships: Ship[] = [
     priceUsd: 295000,
     badges: ['CERTIFIED'],
     specs: { rangeKm: 990, cruiseKmS: 20, launchReadyMin: 6, hull: 'Carbon-Titan', noise: 'Whisper' },
-    features: ['Солнечно-индукционная обшивка', 'Пустынный endurance-профиль', 'Премиальный соло-кокпит'],
+    features: ['Солнечно-индукционная обшивка', 'Профиль выносливости для пустынь', 'Премиальный соло-кокпит'],
     images: ['/ships/ardus-suntalon.png'],
     trims: buildTrims(295000, 'Термостойкий корпусной комплект'),
-    description: 'Соло-под для длительных автономных вылетов с устойчивостью к тепловым зонам и повышенной экономичностью.',
+    description: 'Соло-под для автономных вылетов в жаркие зоны - пьет солнечный свет и смеется над перегревом.',
   },
   {
     id: 'vesper-x2',
@@ -211,7 +218,7 @@ export const ships: Ship[] = [
     features: ['Двойной квантовый двигатель', 'Люксовый кокпит', 'Маршрутная дальность 920 км'],
     images: ['/ships/vesper-x2.png', '/ships/vesper-x2-light.png'],
     trims: buildTrims(490000, 'Синхронизация квантовых двигателей'),
-    description: 'Динамичный duo-класс с двумя цветовыми вариантами корпуса и синхронизированными квантовыми двигателями.',
+    description: 'Динамичный дуо-класс с синхронизированными двигателями и сменой цветов корпуса под настроение.',
   },
   {
     id: 'orion-nx',
@@ -224,10 +231,10 @@ export const ships: Ship[] = [
     priceUsd: 430000,
     badges: ['CERTIFIED', 'NEW DROP'],
     specs: { rangeKm: 1060, cruiseKmS: 22, launchReadyMin: 5, hull: 'Ceramic-Composite', noise: 'Whisper' },
-    features: ['Усиленный AI-автопилот', 'Двойные адаптивные кольца тяги', 'Holoflux-комфорт салона'],
+    features: ['Усиленный ИИ-автопилот', 'Двойные адаптивные кольца тяги', 'Комфорт Holoflux в салоне'],
     images: ['/ships/orion-nx.png'],
     trims: buildTrims(430000, 'Whisper-стабильные hover-двигатели'),
-    description: 'Комфортный двухместный корабль для дальних спокойных маршрутов, деловых рейсов и приватных туров.',
+    description: 'Спокойный дуо-корабль для дальних туров - автопилот умнее некоторых пилотов.',
   },
   {
     id: 'talon-x3',
@@ -240,10 +247,10 @@ export const ships: Ship[] = [
     priceUsd: 405000,
     badges: ['NEW DROP'],
     specs: { rangeKm: 1020, cruiseKmS: 23, launchReadyMin: 6, hull: 'Carbon-Titan', noise: 'Standard' },
-    features: ['Маршрутные карты для лунных миссий', 'Усиленный carbon-titan корпус', 'Точная посадочная оптика'],
+    features: ['Маршрутные карты для лунных миссий', 'Усиленный корпус из карбона и титана', 'Точная посадочная оптика'],
     images: ['/ships/talon-x3.png'],
     trims: buildTrims(405000, 'Орбитальный сканер рельефа'),
-    description: 'Универсальный двухместный аппарат для экспедиций с частыми посадками и усиленным посадочным контуром.',
+    description: 'Универсальный дуо для экспедиций с частыми посадками - садится мягко даже в сложных доках.',
   },
   {
     id: 'eclipse-v6',
@@ -259,7 +266,7 @@ export const ships: Ship[] = [
     features: ['Адаптивные квантовые щиты', 'Панорамный стеклянный кокпит', 'Премиум-класс интерьера'],
     images: ['/ships/eclipse-v6.png'],
     trims: buildTrims(460000, 'Перенастройка shield-overclock'),
-    description: 'Элитный skiff с панорамным кокпитом, рассчитанный на статусные перелеты и тихие орбитальные коридоры.',
+    description: 'Элитный скифф с видом на звезды - для тех, кто летит ради самого процесса.',
   },
   {
     id: 'senith-iv',
@@ -272,10 +279,10 @@ export const ships: Ship[] = [
     priceUsd: 370000,
     badges: ['CERTIFIED'],
     specs: { rangeKm: 840, cruiseKmS: 20, launchReadyMin: 8, hull: 'Nano-Laminate', noise: 'Low' },
-    features: ['Xenoid-сплав корпуса', 'Адаптивное экранирование', 'Люминесцентная система обитаемости'],
+    features: ['Корпус из ксеноид-сплава', 'Адаптивное экранирование', 'Люминесцентная система обитаемости'],
     images: ['/ships/senith-iv.png'],
     trims: buildTrims(370000, 'Интерфейс синхронизации habitat-систем'),
-    description: 'Сбалансированный дуо-корабль для исследовательских полетов, мягких маршрутов и стабильных длинных рейсов.',
+    description: 'Сбалансированный дуо для исследований - светится в темноте и не боится неизвестного.',
   },
   {
     id: 'silis-nx',
@@ -288,10 +295,10 @@ export const ships: Ship[] = [
     priceUsd: 620000,
     badges: ['PROTOTYPE', 'LIMITED'],
     specs: { rangeKm: 990, cruiseKmS: 27, launchReadyMin: 3, hull: 'Nano-Laminate', noise: 'Whisper' },
-    features: ['Omnium-реактор', 'Empyreal-экранирование', 'Биоорганический Xylarian-каркас'],
+    features: ['Реактор Omnium', 'Экранирование Empyreal', 'Биоорганический каркас Xylarian'],
     images: ['/ships/silis-nx.png'],
     trims: buildTrims(620000, 'Усиленный блок empyreal-щитов'),
-    description: 'Экспериментальный соло-под с органическим форм-фактором, повышенной скоростью запуска и stealth-профилем.',
+    description: 'Экспериментальный соло-под - растет вместе с пилотом и стартует быстрее мысли.',
   },
   {
     id: 'verdant-s1',
@@ -304,10 +311,10 @@ export const ships: Ship[] = [
     priceUsd: 345000,
     badges: ['NEW DROP'],
     specs: { rangeKm: 810, cruiseKmS: 19, launchReadyMin: 7, hull: 'Ceramic-Composite', noise: 'Low' },
-    features: ['Сцепление с мокрым dock-покрытием', 'Векторные кольцевые тяги', 'Городской stealth-профиль'],
+    features: ['Сцепление с мокрым покрытием дока', 'Векторные кольцевые тяги', 'Городской профиль скрытности'],
     images: ['/ships/verdant-s1.png'],
     trims: buildTrims(345000, 'Навигационный ассистент city-grid'),
-    description: 'Компактный городской skiff для частых коротких вылетов с адаптацией под мокрые доки.',
+    description: 'Городской скифф - цепляется за любой док и исчезает в трафике.',
   },
   {
     id: 'eclipse-x',
@@ -323,7 +330,7 @@ export const ships: Ship[] = [
     features: ['Стелс-контур корпуса', 'Дальние сенсоры', 'Квантовый док-линк'],
     images: ['/ships/eclipse-x.png'],
     trims: buildTrims(540000, 'Тактический stealth-комплект'),
-    description: 'Тактический соло-под с приоритетом на маневренность, дальнюю разведку и скрытные сближения.',
+    description: 'Тактический соло-под - видит врага за горизонтом и уходит незамеченным.',
   },
   {
     id: 'argon-m9',
@@ -336,11 +343,10 @@ export const ships: Ship[] = [
     priceUsd: 510000,
     badges: ['CERTIFIED', 'NEW DROP'],
     specs: { rangeKm: 980, cruiseKmS: 22, launchReadyMin: 5, hull: 'Carbon-Titan', noise: 'Standard' },
-    features: ['Усиленный carbon-titan корпус', 'Тактический дрон-пуск', 'Расширенный сенсорный пакет'],
+    features: ['Тактический запуск дронов', 'Расширенный сенсорный пакет'],
     images: ['/ships/argon-m9.png'],
     trims: buildTrims(510000, 'Пакет тактической разведки'),
-    description:
-      'Патрульный skiff для экипажа 1-2 с усиленным корпусом, расширенной сенсорикой и быстрым выводом в готовность.',
+    description: 'Патрульный скифф для 1-2 - дроны впереди, победа сзади.',
   },
   {
     id: 'aurora-x7',
@@ -353,10 +359,10 @@ export const ships: Ship[] = [
     priceUsd: 575000,
     badges: ['NEW DROP'],
     specs: { rangeKm: 860, cruiseKmS: 20, launchReadyMin: 6, hull: 'Ceramic-Composite', noise: 'Low' },
-    features: ['Гибридный nano-щит', 'Панорамный HUD', 'Адаптивный thruster-array'],
+    features: ['Гибридный нано-щит', 'Панорамный дисплей', 'Адаптивный массив двигателей'],
     images: ['/ships/aurora-x7.png'],
     trims: buildTrims(575000, 'Премиальный skin-пакет'),
-    description: 'Люксовый дуо-скифф с выразительным цветовым корпусом, расширенной приборной панелью и комфортным кокпитом.',
+    description: 'Люксовый дуо с ярким корпусом - светит и защищает одновременно.',
   },
   {
     id: 'helix-vx2',
@@ -369,11 +375,10 @@ export const ships: Ship[] = [
     priceUsd: 415000,
     badges: ['CERTIFIED', 'NEW DROP'],
     specs: { rangeKm: 785, cruiseKmS: 22, launchReadyMin: 7, hull: 'Carbon-Titan', noise: 'Low' },
-    features: ['Dual-pilot универсальность', 'Iridium-carbon корпус', 'Адаптивные атмосферные thrusters'],
+    features: ['Универсальность для двух пилотов', 'Корпус из иридия и карбона', 'Адаптивные атмосферные двигатели'],
     images: ['/ships/helix-vx2.png'],
     trims: buildTrims(415000, 'Atmospheric Redivs suite'),
-    description:
-      'Маневренный duo-skiff для атмосферных маршрутов и коротких орбитальных перелетов, рассчитанный на дуо-экипаж.',
+    description: 'Маневренный дуо для атмосферы - два пилота, одна цель: долететь стильно.',
   },
   {
     id: 'anx-99-spectra',
@@ -386,11 +391,10 @@ export const ships: Ship[] = [
     priceUsd: 610000,
     badges: ['PROTOTYPE', 'NEW DROP'],
     specs: { rangeKm: 1010, cruiseKmS: 27, launchReadyMin: 4, hull: 'Nano-Laminate', noise: 'Whisper' },
-    features: ['Enigmatic propulsion', 'Quantum veil shielding', 'Biomorphic navigation'],
+    features: ['Загадочная силовая установка', 'Квантовое экранирование скрытности', 'Биоморфная навигация'],
     images: ['/ships/anx-99-spectra.png'],
     trims: buildTrims(610000, 'Spectral veil calibration'),
-    description:
-      'Экспериментальный duo-orbiter на ксенотехнологиях с высоким уровнем маскировки и нестандартной навигацией.',
+    description: 'Экспериментальный дуо-орбитер - летает туда, куда карты еще не нарисованы.',
   },
   {
     id: 'nexys-shadow-nx',
@@ -403,10 +407,10 @@ export const ships: Ship[] = [
     priceUsd: 735000,
     badges: ['NEW DROP', 'CERTIFIED'],
     specs: { rangeKm: 1460, cruiseKmS: 23, launchReadyMin: 8, hull: 'Carbon-Titan', noise: 'Low' },
-    features: ['Neotrix drives', 'Адаптивный glare-shield', 'Гибкая интерьерная модульность'],
+    features: ['Двигатели Neotrix', 'Адаптивный щит от бликов', 'Гибкая модульность интерьера'],
     images: ['/ships/nexys-shadow-nx.png'],
     trims: buildTrims(735000, 'Deep-space Neotrix package'),
-    description: 'Квадро-шаттл нового поколения для дальних маршрутов, экипажа до 4 человек и модульных миссий.',
+    description: 'Четырехместный шаттл - меняет планировку быстрее, чем экипаж меняет мнение.',
   },
   {
     id: 'nyx-veil-s1',
@@ -419,10 +423,10 @@ export const ships: Ship[] = [
     priceUsd: 680000,
     badges: ['PROTOTYPE', 'LIMITED'],
     specs: { rangeKm: 1040, cruiseKmS: 29, launchReadyMin: 3, hull: 'Nano-Laminate', noise: 'Whisper' },
-    features: ['Alien alloy shell', 'Phantom stealth contour', 'Veil-reactor microburst'],
+    features: ['Корпус из инопланетного сплава', 'Фантомный контур скрытности', 'Микровспышка реактора скрытности'],
     images: ['/ships/nyx-veil-s1.png'],
     trims: buildTrims(680000, 'Phantom stealth envelope'),
-    description: 'Соло-под с упором на малозаметность, максимальную скорость выхода в курс и фантомный профиль.',
+    description: 'Соло-под - появляется и исчезает, оставляя только вопросы.',
   },
   {
     id: 'ketra-x2',
@@ -435,10 +439,10 @@ export const ships: Ship[] = [
     priceUsd: 560000,
     badges: ['LIMITED', 'NEW DROP'],
     specs: { rangeKm: 930, cruiseKmS: 24, launchReadyMin: 6, hull: 'Nano-Laminate', noise: 'Low' },
-    features: ['Biomorphic hull', 'Xenotech interface', 'Anti-grav pod array'],
+    features: ['Биоморфный корпус', 'Ксенотехнологический интерфейс', 'Антигравитационный массив капсул'],
     images: ['/ships/ketra-x2.png'],
     trims: buildTrims(560000, 'Xenotech berth program'),
-    description: 'Duo-craft с биоморфным корпусом, рассчитанный на комфортные автономные вылеты и мягкий ход.',
+    description: 'Дуо-корабль - плывет по космосу, как по морю, только без волн.',
   },
   {
     id: 'solstice-r9',
@@ -455,6 +459,6 @@ export const ships: Ship[] = [
     images: ['/ships/solstice-r9.png'],
     trims: buildTrims(645000, 'Пакет HelioGrid дальнего сопровождения'),
     description:
-      'Флагманская три-кабина для семейных и деловых перелетов между планетарными узлами, с расширенным комфортом и дальним сопровождением.',
+      'Флагманская трикабина - для семьи или целой корпорации, но всегда с королевским комфортом.',
   },
 ];
