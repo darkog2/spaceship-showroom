@@ -158,9 +158,13 @@ const paymentMethods = [
 ];
 
 const FEATURED_REPEAT = 5;
-const FEATURED_MAX_VELOCITY = 3.8;
-const FEATURED_MIN_VELOCITY = 0.014;
-const FEATURED_DECAY_PER_FRAME = 0.932;
+const FEATURED_MAX_VELOCITY = 2.7;
+const FEATURED_MIN_VELOCITY = 0.022;
+const FEATURED_DECAY_PER_FRAME = 0.9;
+const PAGE_GLIDE_MAX = 38;
+const PAGE_GLIDE_GAIN = 0.06;
+const PAGE_GLIDE_DECAY = 0.82;
+const PAGE_GLIDE_MIN = 0.5;
 
 export default function App() {
   const [filteredShips, setFilteredShips] = useState<Ship[]>(ships);
@@ -451,7 +455,7 @@ export default function App() {
         featuredDragRef.current.moved = false;
       }, 140);
       if (Math.abs(drag.velocity) > 0.01) {
-        applyFeaturedInertia(drag.velocity * 5.2, 'replace');
+        applyFeaturedInertia(drag.velocity * 4.2, 'replace');
       }
     } else {
       drag.velocity = 0;
@@ -466,7 +470,7 @@ export default function App() {
     }
     const shift = Math.min(540, track.clientWidth * 0.95);
     track.scrollBy({ left: direction * shift, behavior: 'smooth' });
-    applyFeaturedInertia(-direction * Math.min(2.6, 1.2 + shift / 430), 'replace');
+    applyFeaturedInertia(-direction * Math.min(1.9, 0.9 + shift / 620), 'replace');
   };
 
   const onFeaturedWheel = (event: WheelEvent<HTMLDivElement>) => {
@@ -478,9 +482,9 @@ export default function App() {
     const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
     const modeMultiplier = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1;
     const pixelDelta = delta * modeMultiplier;
-    track.scrollLeft += pixelDelta * 0.82;
+    track.scrollLeft += pixelDelta * 0.74;
     keepFeaturedLooped();
-    applyFeaturedInertia(-pixelDelta * 0.0031, 'add');
+    applyFeaturedInertia(-pixelDelta * 0.0018, 'add');
   };
 
   const onFeaturedScroll = () => {
@@ -615,6 +619,24 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const html = document.documentElement;
+    const updateScrollRatio = () => {
+      const maxScroll = Math.max(1, html.scrollHeight - window.innerHeight);
+      const ratio = window.scrollY / maxScroll;
+      html.style.setProperty('--scroll-ratio', ratio.toFixed(4));
+    };
+
+    updateScrollRatio();
+    window.addEventListener('scroll', updateScrollRatio, { passive: true });
+    window.addEventListener('resize', updateScrollRatio);
+    return () => {
+      window.removeEventListener('scroll', updateScrollRatio);
+      window.removeEventListener('resize', updateScrollRatio);
+      html.style.removeProperty('--scroll-ratio');
+    };
+  }, []);
+
+  useEffect(() => {
     if (overlayOpen) {
       return;
     }
@@ -625,43 +647,14 @@ export default function App() {
       return;
     }
 
-    const html = document.documentElement;
     let frameId: number | null = null;
-    let current = window.scrollY;
-    let target = window.scrollY;
-
-    const updateScrollRatio = () => {
-      const maxScroll = Math.max(1, html.scrollHeight - window.innerHeight);
-      const ratio = window.scrollY / maxScroll;
-      html.style.setProperty('--scroll-ratio', ratio.toFixed(4));
-    };
-
-    const clampTarget = (value: number) => {
-      const maxScroll = Math.max(0, html.scrollHeight - window.innerHeight);
-      return Math.max(0, Math.min(maxScroll, value));
-    };
+    let momentum = 0;
 
     const stopAnimation = () => {
       if (frameId !== null) {
         cancelAnimationFrame(frameId);
         frameId = null;
       }
-    };
-
-    const animate = () => {
-      const delta = target - current;
-      if (Math.abs(delta) < 0.35) {
-        current = target;
-        window.scrollTo({ top: target, behavior: 'auto' });
-        stopAnimation();
-        updateScrollRatio();
-        return;
-      }
-
-      current += delta * 0.14;
-      window.scrollTo({ top: current, behavior: 'auto' });
-      updateScrollRatio();
-      frameId = requestAnimationFrame(animate);
     };
 
     const hasScrollableAncestor = (element: HTMLElement | null) => {
@@ -677,6 +670,17 @@ export default function App() {
         node = node.parentElement;
       }
       return false;
+    };
+
+    const animate = () => {
+      if (Math.abs(momentum) < PAGE_GLIDE_MIN) {
+        stopAnimation();
+        momentum = 0;
+        return;
+      }
+      window.scrollBy({ top: momentum, behavior: 'auto' });
+      momentum *= PAGE_GLIDE_DECAY;
+      frameId = requestAnimationFrame(animate);
     };
 
     const onWheel = (event: globalThis.WheelEvent) => {
@@ -699,34 +703,18 @@ export default function App() {
         return;
       }
 
-      event.preventDefault();
       const modeMultiplier = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1;
-      target = clampTarget(target + dominantDelta * modeMultiplier * 0.95);
+      momentum += dominantDelta * modeMultiplier * PAGE_GLIDE_GAIN;
+      momentum = Math.max(-PAGE_GLIDE_MAX, Math.min(PAGE_GLIDE_MAX, momentum));
       if (frameId === null) {
         frameId = requestAnimationFrame(animate);
       }
     };
 
-    const syncNativePosition = () => {
-      if (frameId !== null) {
-        return;
-      }
-      current = window.scrollY;
-      target = window.scrollY;
-      updateScrollRatio();
-    };
-
-    updateScrollRatio();
-    window.addEventListener('wheel', onWheel, { passive: false });
-    window.addEventListener('scroll', syncNativePosition, { passive: true });
-    window.addEventListener('resize', syncNativePosition);
-
+    window.addEventListener('wheel', onWheel, { passive: true });
     return () => {
       stopAnimation();
       window.removeEventListener('wheel', onWheel);
-      window.removeEventListener('scroll', syncNativePosition);
-      window.removeEventListener('resize', syncNativePosition);
-      html.style.removeProperty('--scroll-ratio');
     };
   }, [overlayOpen]);
 
