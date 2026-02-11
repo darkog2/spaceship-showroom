@@ -3,11 +3,12 @@ import Footer from './components/Footer';
 import { useEffect, useMemo, useRef, type ChangeEvent, type FormEvent, type PointerEvent, type WheelEvent } from 'react';
 import Hero from './components/Hero';
 import Navbar from './components/Navbar';
+import SectionOrbitNav from './components/SectionOrbitNav';
 import ShipCard from './components/ShipCard';
 import ShipDetail from './components/ShipDetail';
 import ShipFilter from './components/ShipFilter';
 import { Manufacturer, Ship, manufacturers, ships } from './data/ships';
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 const missionProfiles = [
   {
@@ -248,9 +249,6 @@ export default function App() {
     [checkoutForm.destinationType],
   );
   const overlayOpen = Boolean(selectedShip || quickViewShip || cartOpen || compareOpen || activeManufacturer);
-  const activeQuickNavIndex = Math.max(0, quickNavSections.findIndex((section) => section.id === activeQuickNavSection));
-  const canShiftQuickNavUp = activeQuickNavIndex > 0;
-  const canShiftQuickNavDown = activeQuickNavIndex < quickNavSections.length - 1;
 
   const flashNotice = (message: string) => {
     if (noticeTimeoutRef.current !== null) {
@@ -277,15 +275,6 @@ export default function App() {
     }
     section.scrollIntoView({ behavior: 'smooth', block: 'start' });
     setActiveQuickNavSection(id);
-  };
-
-  const shiftQuickNavSection = (direction: 1 | -1) => {
-    const nextIndex = Math.min(quickNavSections.length - 1, Math.max(0, activeQuickNavIndex + direction));
-    const nextSection = quickNavSections[nextIndex];
-    if (!nextSection) {
-      return;
-    }
-    scrollToQuickNavSection(nextSection.id);
   };
 
   const getFeaturedInputBoost = () => {
@@ -1338,58 +1327,11 @@ export default function App() {
       </main>
 
       {!overlayOpen && (
-        <nav className="section-orbit" aria-label="Быстрая навигация по разделам">
-          <div className="section-orbit-shell">
-            <div className="section-orbit-arrows">
-              <button
-                type="button"
-                aria-label="Перейти к разделу выше"
-                onClick={() => shiftQuickNavSection(-1)}
-                disabled={!canShiftQuickNavUp}
-                className="section-orbit-arrow"
-              >
-                <ChevronUp size={14} />
-              </button>
-              <button
-                type="button"
-                aria-label="Перейти к разделу ниже"
-                onClick={() => shiftQuickNavSection(1)}
-                disabled={!canShiftQuickNavDown}
-                className="section-orbit-arrow"
-              >
-                <ChevronDown size={14} />
-              </button>
-            </div>
-            <div className="section-orbit-track">
-              <span className="section-orbit-line" aria-hidden="true" />
-              <span
-                className="section-orbit-progress"
-                aria-hidden="true"
-                style={{ height: `${8 + activeQuickNavIndex * 24}px` }}
-              />
-              <span
-                className="section-orbit-focus"
-                aria-hidden="true"
-                style={{ top: `${activeQuickNavIndex * 24 - 6}px` }}
-              />
-              {quickNavSections.map((section) => {
-                const isActive = section.id === activeQuickNavSection;
-                return (
-                  <button
-                    key={section.id}
-                    type="button"
-                    title={section.label}
-                    aria-current={isActive ? 'true' : undefined}
-                    onClick={() => scrollToQuickNavSection(section.id)}
-                    className={`section-orbit-node${isActive ? ' is-active' : ''}`}
-                  >
-                    <span className="section-orbit-label">{section.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </nav>
+        <SectionOrbitNav
+          sections={quickNavSections}
+          activeId={activeQuickNavSection}
+          onJump={(id) => scrollToQuickNavSection(id as QuickNavSectionId)}
+        />
       )}
 
       <Footer />
