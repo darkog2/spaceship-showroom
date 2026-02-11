@@ -857,7 +857,7 @@ export default function App() {
   }, [featuredCards.length]);
 
   return (
-    <div className="min-h-screen bg-dark-navy text-text-light">
+    <div className="min-h-screen bg-transparent text-text-light">
       <Navbar />
 
       <main className="pt-[72px]">

@@ -72,7 +72,7 @@ body::after {
   inset: 0;
   pointer-events: none;
   z-index: 1;
-  opacity: calc(0.14 + var(--scroll-ratio) * 0.14);
+  opacity: calc(0.2 + var(--scroll-ratio) * 0.14);
   background-image:
     repeating-linear-gradient(
       0deg,
@@ -81,8 +81,10 @@ body::after {
       transparent 1px,
       transparent 3px
     ),
-    radial-gradient(circle at 70% 20%, rgba(255, 143, 31, 0.12), transparent 35%);
+    radial-gradient(circle at 70% 20%, rgba(255, 143, 31, 0.16), transparent 35%),
+    radial-gradient(circle at 32% 68%, rgba(92, 196, 255, 0.12), transparent 42%);
   transition: opacity 320ms ease;
+  animation: galaxyRotate 96s linear infinite;
 }
 
 body.space-off {
@@ -125,6 +127,18 @@ main {
   }
   100% {
     background-position: 0 0, 0 0, 0 0, 45% 52%;
+  }
+}
+
+@keyframes galaxyRotate {
+  0% {
+    transform: rotate(0deg) scale(1);
+  }
+  50% {
+    transform: rotate(180deg) scale(1.04);
+  }
+  100% {
+    transform: rotate(360deg) scale(1);
   }
 }
 
@@ -481,6 +495,11 @@ main {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  body::before,
+  body::after {
+    animation: none;
+  }
+
   .section-orbit-shell::before,
   .section-orbit-focus,
   .section-orbit-node.is-active {
