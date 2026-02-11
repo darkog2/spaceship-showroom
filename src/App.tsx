@@ -158,6 +158,9 @@ const paymentMethods = [
 ];
 
 const FEATURED_REPEAT = 5;
+const FEATURED_MAX_VELOCITY = 3.8;
+const FEATURED_MIN_VELOCITY = 0.014;
+const FEATURED_DECAY_PER_FRAME = 0.932;
 
 export default function App() {
   const [filteredShips, setFilteredShips] = useState<Ship[]>(ships);
@@ -194,6 +197,8 @@ export default function App() {
     velocity: 0,
   });
   const featuredInertiaRef = useRef<number | null>(null);
+  const featuredVelocityRef = useRef(0);
+  const featuredLastFrameRef = useRef(0);
   const noticeTimeoutRef = useRef<number | null>(null);
 
   const getManufacturer = (manufacturerId: string) =>
@@ -226,6 +231,7 @@ export default function App() {
     () => destinationHubs.filter((hub) => hub.type === checkoutForm.destinationType),
     [checkoutForm.destinationType],
   );
+  const overlayOpen = Boolean(selectedShip || quickViewShip || cartOpen || compareOpen || activeManufacturer);
 
   const flashNotice = (message: string) => {
     if (noticeTimeoutRef.current !== null) {
@@ -272,6 +278,8 @@ export default function App() {
       cancelAnimationFrame(featuredInertiaRef.current);
       featuredInertiaRef.current = null;
     }
+    featuredVelocityRef.current = 0;
+    featuredLastFrameRef.current = 0;
   };
 
   const setFeaturedPlasma = (power: number) => {
@@ -300,32 +308,49 @@ export default function App() {
     }
   };
 
-  const startFeaturedInertia = () => {
-    const track = featuredTrackRef.current;
-    if (!track) {
+  const applyFeaturedInertia = (impulse: number, mode: 'add' | 'replace' = 'add') => {
+    if (mode === 'replace') {
+      featuredVelocityRef.current = impulse;
+    } else {
+      featuredVelocityRef.current += impulse;
+    }
+    featuredVelocityRef.current = Math.max(
+      -FEATURED_MAX_VELOCITY,
+      Math.min(FEATURED_MAX_VELOCITY, featuredVelocityRef.current),
+    );
+    if (Math.abs(featuredVelocityRef.current) < FEATURED_MIN_VELOCITY) {
+      setFeaturedPlasma(0);
       return;
     }
-    stopFeaturedInertia();
-    let velocity = featuredDragRef.current.velocity * 5.1;
-    const maxVelocity = 6.4;
-    velocity = Math.max(-maxVelocity, Math.min(maxVelocity, velocity));
-    const decay = 0.995;
-    const minVelocity = 0.0003;
-    let lastFrameTime = performance.now();
 
+    if (featuredInertiaRef.current !== null) {
+      return;
+    }
+
+    featuredLastFrameRef.current = performance.now();
     const step = (now: number) => {
-      const dt = now - lastFrameTime;
-      lastFrameTime = now;
-      if (Math.abs(velocity) < minVelocity) {
-        setFeaturedPlasma(0);
+      const track = featuredTrackRef.current;
+      if (!track) {
         featuredInertiaRef.current = null;
+        featuredVelocityRef.current = 0;
+        setFeaturedPlasma(0);
         return;
       }
 
-      track.scrollLeft -= velocity * dt;
+      const dt = Math.min(34, Math.max(8, now - featuredLastFrameRef.current || 16));
+      featuredLastFrameRef.current = now;
+      track.scrollLeft -= featuredVelocityRef.current * dt;
       keepFeaturedLooped();
-      setFeaturedPlasma(Math.min(Math.abs(velocity) / 1.05, 1.6));
-      velocity *= decay;
+      setFeaturedPlasma(Math.min(Math.abs(featuredVelocityRef.current) / 2.1, 1.6));
+
+      const frameScale = dt / 16.666;
+      featuredVelocityRef.current *= Math.pow(FEATURED_DECAY_PER_FRAME, frameScale);
+      if (Math.abs(featuredVelocityRef.current) < FEATURED_MIN_VELOCITY) {
+        featuredInertiaRef.current = null;
+        featuredVelocityRef.current = 0;
+        setFeaturedPlasma(0);
+        return;
+      }
       featuredInertiaRef.current = requestAnimationFrame(step);
     };
 
@@ -426,7 +451,7 @@ export default function App() {
         featuredDragRef.current.moved = false;
       }, 140);
       if (Math.abs(drag.velocity) > 0.01) {
-        startFeaturedInertia();
+        applyFeaturedInertia(drag.velocity * 5.2, 'replace');
       }
     } else {
       drag.velocity = 0;
@@ -439,11 +464,9 @@ export default function App() {
     if (!track) {
       return;
     }
-    stopFeaturedInertia();
-    featuredDragRef.current.velocity = -direction * 2.4;
     const shift = Math.min(540, track.clientWidth * 0.95);
     track.scrollBy({ left: direction * shift, behavior: 'smooth' });
-    startFeaturedInertia();
+    applyFeaturedInertia(-direction * Math.min(2.6, 1.2 + shift / 430), 'replace');
   };
 
   const onFeaturedWheel = (event: WheelEvent<HTMLDivElement>) => {
@@ -452,11 +475,12 @@ export default function App() {
       return;
     }
     event.preventDefault();
-    stopFeaturedInertia();
     const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
-    track.scrollLeft += delta * 0.85;
+    const modeMultiplier = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1;
+    const pixelDelta = delta * modeMultiplier;
+    track.scrollLeft += pixelDelta * 0.82;
     keepFeaturedLooped();
-    setFeaturedPlasma(0);
+    applyFeaturedInertia(-pixelDelta * 0.0031, 'add');
   };
 
   const onFeaturedScroll = () => {
@@ -531,7 +555,6 @@ export default function App() {
   }, [activeManufacturer, cartOpen, compareOpen, manufacturerFocusId, quickViewShip, selectedShip, visibleShipPool]);
 
   useEffect(() => {
-    const overlayOpen = Boolean(selectedShip || quickViewShip || cartOpen || compareOpen || activeManufacturer);
     if (!overlayOpen) {
       return;
     }
@@ -540,7 +563,172 @@ export default function App() {
     return () => {
       document.body.style.overflow = previousOverflow;
     };
-  }, [activeManufacturer, cartOpen, compareOpen, quickViewShip, selectedShip]);
+  }, [overlayOpen]);
+
+  useEffect(() => {
+    const sections = Array.from(document.querySelectorAll<HTMLElement>('main > section'));
+    if (sections.length === 0) {
+      return;
+    }
+
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    sections.forEach((section, index) => {
+      section.classList.add('flow-section');
+      section.style.setProperty('--flow-delay', `${Math.min(index * 55, 260)}ms`);
+      if (index === 0) {
+        section.classList.add('flow-section-visible');
+      }
+    });
+
+    if (prefersReducedMotion || !('IntersectionObserver' in window)) {
+      sections.forEach((section) => section.classList.add('flow-section-visible'));
+      return () => {
+        sections.forEach((section) => {
+          section.classList.remove('flow-section', 'flow-section-visible');
+          section.style.removeProperty('--flow-delay');
+        });
+      };
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('flow-section-visible');
+          }
+        });
+      },
+      {
+        threshold: 0.18,
+        rootMargin: '0px 0px -10% 0px',
+      },
+    );
+
+    sections.forEach((section) => observer.observe(section));
+    return () => {
+      observer.disconnect();
+      sections.forEach((section) => {
+        section.classList.remove('flow-section', 'flow-section-visible');
+        section.style.removeProperty('--flow-delay');
+      });
+    };
+  }, []);
+
+  useEffect(() => {
+    if (overlayOpen) {
+      return;
+    }
+    if (!window.matchMedia('(pointer: fine)').matches) {
+      return;
+    }
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      return;
+    }
+
+    const html = document.documentElement;
+    let frameId: number | null = null;
+    let current = window.scrollY;
+    let target = window.scrollY;
+
+    const updateScrollRatio = () => {
+      const maxScroll = Math.max(1, html.scrollHeight - window.innerHeight);
+      const ratio = window.scrollY / maxScroll;
+      html.style.setProperty('--scroll-ratio', ratio.toFixed(4));
+    };
+
+    const clampTarget = (value: number) => {
+      const maxScroll = Math.max(0, html.scrollHeight - window.innerHeight);
+      return Math.max(0, Math.min(maxScroll, value));
+    };
+
+    const stopAnimation = () => {
+      if (frameId !== null) {
+        cancelAnimationFrame(frameId);
+        frameId = null;
+      }
+    };
+
+    const animate = () => {
+      const delta = target - current;
+      if (Math.abs(delta) < 0.35) {
+        current = target;
+        window.scrollTo({ top: target, behavior: 'auto' });
+        stopAnimation();
+        updateScrollRatio();
+        return;
+      }
+
+      current += delta * 0.14;
+      window.scrollTo({ top: current, behavior: 'auto' });
+      updateScrollRatio();
+      frameId = requestAnimationFrame(animate);
+    };
+
+    const hasScrollableAncestor = (element: HTMLElement | null) => {
+      let node = element;
+      while (node && node !== document.body) {
+        const styles = window.getComputedStyle(node);
+        const canScrollY =
+          (styles.overflowY === 'auto' || styles.overflowY === 'scroll') &&
+          node.scrollHeight > node.clientHeight + 1;
+        if (canScrollY) {
+          return true;
+        }
+        node = node.parentElement;
+      }
+      return false;
+    };
+
+    const onWheel = (event: globalThis.WheelEvent) => {
+      if (event.defaultPrevented || event.ctrlKey) {
+        return;
+      }
+      const eventTarget = event.target as HTMLElement | null;
+      if (eventTarget?.closest('.featured-loop-track')) {
+        return;
+      }
+      if (eventTarget?.closest('input, textarea, select, [contenteditable="true"]')) {
+        return;
+      }
+      if (hasScrollableAncestor(eventTarget)) {
+        return;
+      }
+
+      const dominantDelta = Math.abs(event.deltaY) >= Math.abs(event.deltaX) ? event.deltaY : event.deltaX;
+      if (dominantDelta === 0) {
+        return;
+      }
+
+      event.preventDefault();
+      const modeMultiplier = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1;
+      target = clampTarget(target + dominantDelta * modeMultiplier * 0.95);
+      if (frameId === null) {
+        frameId = requestAnimationFrame(animate);
+      }
+    };
+
+    const syncNativePosition = () => {
+      if (frameId !== null) {
+        return;
+      }
+      current = window.scrollY;
+      target = window.scrollY;
+      updateScrollRatio();
+    };
+
+    updateScrollRatio();
+    window.addEventListener('wheel', onWheel, { passive: false });
+    window.addEventListener('scroll', syncNativePosition, { passive: true });
+    window.addEventListener('resize', syncNativePosition);
+
+    return () => {
+      stopAnimation();
+      window.removeEventListener('wheel', onWheel);
+      window.removeEventListener('scroll', syncNativePosition);
+      window.removeEventListener('resize', syncNativePosition);
+      html.style.removeProperty('--scroll-ratio');
+    };
+  }, [overlayOpen]);
 
   const handleFilter = (filteredShips: Ship[]) => {
     setFilteredShips(filteredShips);
