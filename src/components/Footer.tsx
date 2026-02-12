@@ -1,5 +1,5 @@
 ﻿export default function Footer() {
-  const currentYear = new Date().getFullYear();
+  const currentYear = 2146;
 
   return (
     <footer className="mt-14 border-t border-cyan-holo/25 bg-panel-dark/60 backdrop-blur-xl">
@@ -47,3 +47,4 @@
     </footer>
   );
 }
+

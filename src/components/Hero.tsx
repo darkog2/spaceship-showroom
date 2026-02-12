@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ArrowDownRight, Sparkles } from 'lucide-react';
 import { Ship, ships } from '../data/ships';
+import { useTiltEffect } from '../hooks/useTiltEffect';
 
 interface HeroProps {
   onOpenFeaturedShip: (ship: Ship) => void;
@@ -30,6 +31,10 @@ const ambienceFrames = [
 
 export default function Hero({ onOpenFeaturedShip }: HeroProps) {
   const [activeFrame, setActiveFrame] = useState(0);
+  const { onMouseMove: onHeroTiltMove, onMouseLeave: onHeroTiltLeave } = useTiltEffect({
+    intensity: 1.18,
+    perspective: 1220,
+  });
 
   useEffect(() => {
     const timerId = window.setInterval(() => {
@@ -105,7 +110,12 @@ export default function Hero({ onOpenFeaturedShip }: HeroProps) {
         </div>
 
         <div className="lg:col-span-6">
-          <article className="panel-shell hero-feature-shell cursor-pointer overflow-hidden p-3" onClick={() => onOpenFeaturedShip(featuredShip)}>
+          <article
+            className="panel-shell card-tilt-reactive hero-feature-shell cursor-pointer overflow-hidden p-3"
+            onClick={() => onOpenFeaturedShip(featuredShip)}
+            onMouseMove={onHeroTiltMove}
+            onMouseLeave={onHeroTiltLeave}
+          >
             <div
               className="zoomable relative h-[330px] overflow-hidden rounded-xl sm:h-[430px] lg:h-[500px]"
               onMouseMove={(event) => {

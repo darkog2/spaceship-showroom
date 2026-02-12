@@ -1,5 +1,6 @@
-import { useCallback, useMemo, useState, type MouseEvent as ReactMouseEvent } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Manufacturer, Ship } from '../data/ships';
+import { useTiltEffect } from '../hooks/useTiltEffect';
 
 interface ShipCardProps {
   ship: Ship;
@@ -51,6 +52,7 @@ export default function ShipCard({
   manufacturer,
 }: ShipCardProps) {
   const [activeImage, setActiveImage] = useState(0);
+  const { onMouseMove: onCardTiltMove, onMouseLeave: onCardTiltLeave } = useTiltEffect({ intensity: 1 });
 
   const availabilityClass =
     ship.availability === 'In Stock'
@@ -71,30 +73,6 @@ export default function ShipCard({
     event.currentTarget.style.setProperty('--zoom-y', `${y}%`);
   }, []);
 
-  const handleCardTiltMove = useCallback((event: ReactMouseEvent<HTMLElement>) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    if (rect.width <= 0 || rect.height <= 0) {
-      return;
-    }
-    const offsetX = (event.clientX - rect.left) / rect.width - 0.5;
-    const offsetY = (event.clientY - rect.top) / rect.height - 0.5;
-    const rotateX = -offsetY * 2.6;
-    const rotateY = offsetX * 3.2;
-    const shiftX = offsetX * 3.4;
-    const shiftY = offsetY * 2.6;
-    event.currentTarget.style.setProperty('--card-tilt-x', `${rotateX.toFixed(3)}deg`);
-    event.currentTarget.style.setProperty('--card-tilt-y', `${rotateY.toFixed(3)}deg`);
-    event.currentTarget.style.setProperty('--card-shift-x', `${shiftX.toFixed(3)}px`);
-    event.currentTarget.style.setProperty('--card-shift-y', `${shiftY.toFixed(3)}px`);
-  }, []);
-
-  const handleCardTiltReset = useCallback((event: ReactMouseEvent<HTMLElement>) => {
-    event.currentTarget.style.setProperty('--card-tilt-x', '0deg');
-    event.currentTarget.style.setProperty('--card-tilt-y', '0deg');
-    event.currentTarget.style.setProperty('--card-shift-x', '0px');
-    event.currentTarget.style.setProperty('--card-shift-y', '0px');
-  }, []);
-
   const variants = useMemo(() => ship.images.map((_, idx) => idx), [ship.images]);
 
   const shortDescription = useMemo(() => {
@@ -107,8 +85,8 @@ export default function ShipCard({
     <article
       className="group card-tilt-reactive cursor-pointer"
       onClick={() => onClick(ship)}
-      onMouseMove={handleCardTiltMove}
-      onMouseLeave={handleCardTiltReset}
+      onMouseMove={onCardTiltMove}
+      onMouseLeave={onCardTiltLeave}
     >
       <div className="panel-shell ship-card-glow overflow-hidden p-0 transition-all duration-[400ms] group-hover:-translate-y-2">
         <div
@@ -200,8 +178,8 @@ export default function ShipCard({
                 {manufacturer.short} {manufacturer.name}
               </button>
             )}
-            <div className="mt-3 max-w-[300px] rounded-lg border border-cyan-holo/28 bg-dark-navy/45 px-3 py-2.5 backdrop-blur-sm">
-              <p className="font-rajdhani text-sm leading-snug text-text-light/78">{shortDescription}</p>
+            <div className="ship-copy-box mt-3 max-w-[300px] px-3 py-2.5 backdrop-blur-[2px]">
+              <p className="ship-copy-text">{shortDescription}</p>
             </div>
             {ship.marketNote && (
               <p className="mt-2 max-w-[280px] font-rajdhani text-sm italic text-text-light/70">{ship.marketNote}</p>

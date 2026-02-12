@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp } from 'lucide-react';
+﻿import { ChevronDown, ChevronUp } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 export type OrbitSection = {
@@ -12,12 +12,18 @@ type Props = {
   onJump: (id: string) => void;
 };
 
+const GLIDE_RESPONSIVENESS = 18;
+const GLIDE_SNAP = 0.001;
+
 export default function SectionOrbitNav({ sections, activeId, onJump }: Props) {
   const activeIndex = Math.max(0, sections.findIndex((section) => section.id === activeId));
   const [displayIndex, setDisplayIndex] = useState(activeIndex);
+
   const displayIndexRef = useRef(activeIndex);
-  const velocityRef = useRef(0);
+  const targetIndexRef = useRef(activeIndex);
   const frameRef = useRef<number | null>(null);
+  const lastFrameRef = useRef<number | null>(null);
+
   const canShiftUp = activeIndex > 0;
   const canShiftDown = activeIndex < sections.length - 1;
 
@@ -31,59 +37,80 @@ export default function SectionOrbitNav({ sections, activeId, onJump }: Props) {
 
   useEffect(() => {
     const maxIndex = Math.max(0, sections.length - 1);
-    if (displayIndexRef.current > maxIndex) {
-      displayIndexRef.current = maxIndex;
-      setDisplayIndex(maxIndex);
+    const clampedDisplay = Math.min(maxIndex, Math.max(0, displayIndexRef.current));
+    const clampedTarget = Math.min(maxIndex, Math.max(0, targetIndexRef.current));
+
+    if (clampedDisplay !== displayIndexRef.current) {
+      displayIndexRef.current = clampedDisplay;
+      setDisplayIndex(clampedDisplay);
     }
+
+    targetIndexRef.current = clampedTarget;
   }, [sections.length]);
 
   useEffect(() => {
     const hasWindow = typeof window !== 'undefined';
     const prefersReducedMotion = hasWindow && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const maxIndex = Math.max(0, sections.length - 1);
+    const clampedTarget = Math.min(maxIndex, Math.max(0, activeIndex));
+
+    targetIndexRef.current = clampedTarget;
 
     if (prefersReducedMotion) {
-      velocityRef.current = 0;
-      displayIndexRef.current = activeIndex;
-      setDisplayIndex(activeIndex);
-      return;
-    }
-
-    const maxIndex = Math.max(0, sections.length - 1);
-    const stiffness = 0.25;
-    const damping = 0.78;
-    const precision = 0.002;
-
-    const animate = () => {
-      const delta = activeIndex - displayIndexRef.current;
-      velocityRef.current = (velocityRef.current + delta * stiffness) * damping;
-
-      const nextIndex = Math.min(maxIndex, Math.max(0, displayIndexRef.current + velocityRef.current));
-      displayIndexRef.current = nextIndex;
-      setDisplayIndex(nextIndex);
-
-      if (Math.abs(delta) < precision && Math.abs(velocityRef.current) < precision) {
-        displayIndexRef.current = activeIndex;
-        velocityRef.current = 0;
-        setDisplayIndex(activeIndex);
-        frameRef.current = null;
-        return;
-      }
-
-      frameRef.current = requestAnimationFrame(animate);
-    };
-
-    if (frameRef.current !== null) {
-      cancelAnimationFrame(frameRef.current);
-    }
-    frameRef.current = requestAnimationFrame(animate);
-
-    return () => {
       if (frameRef.current !== null) {
         cancelAnimationFrame(frameRef.current);
         frameRef.current = null;
       }
+      displayIndexRef.current = clampedTarget;
+      setDisplayIndex(clampedTarget);
+      lastFrameRef.current = null;
+      return;
+    }
+
+    const step = (timestamp: number) => {
+      const previousTimestamp = lastFrameRef.current ?? timestamp;
+      const dt = Math.min(0.04, Math.max(0.008, (timestamp - previousTimestamp) / 1000));
+      lastFrameRef.current = timestamp;
+
+      const current = displayIndexRef.current;
+      const target = targetIndexRef.current;
+      const displacement = target - current;
+
+      if (Math.abs(displacement) < GLIDE_SNAP) {
+        displayIndexRef.current = target;
+        setDisplayIndex(target);
+        frameRef.current = null;
+        lastFrameRef.current = null;
+        return;
+      }
+
+      const alpha = 1 - Math.exp(-GLIDE_RESPONSIVENESS * dt);
+      const nextIndex = current + displacement * alpha;
+      displayIndexRef.current = Math.min(maxIndex, Math.max(0, nextIndex));
+      setDisplayIndex(displayIndexRef.current);
+
+      frameRef.current = requestAnimationFrame(step);
+    };
+
+    if (frameRef.current === null) {
+      frameRef.current = requestAnimationFrame(step);
+    }
+
+    return () => {
+      // keep animation loop alive between target updates
     };
   }, [activeIndex, sections.length]);
+
+  useEffect(
+    () => () => {
+      if (frameRef.current !== null) {
+        cancelAnimationFrame(frameRef.current);
+        frameRef.current = null;
+      }
+      lastFrameRef.current = null;
+    },
+    [],
+  );
 
   const shift = (direction: 1 | -1) => {
     const nextIndex = Math.min(sections.length - 1, Math.max(0, activeIndex + direction));
@@ -145,6 +172,7 @@ export default function SectionOrbitNav({ sections, activeId, onJump }: Props) {
             );
           })}
         </div>
+
         <div className="orbit-particle" aria-hidden="true" />
         <div className="orbit-particle" aria-hidden="true" />
         <div className="orbit-particle" aria-hidden="true" />

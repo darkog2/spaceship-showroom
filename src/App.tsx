@@ -167,6 +167,8 @@ const FEATURED_BOOST_STEP = 0.18;
 const FEATURED_BOOST_CAP = 3.1;
 const FEATURED_DRAG_RELEASE_MULTIPLIER = 6.8;
 const FEATURED_WHEEL_IMPULSE_BASE = 0.0023;
+const FEATURED_GLIDE_MIN_MS = 120;
+const FEATURED_GLIDE_MAX_MS = 340;
 const MANUFACTURER_PREVIEW_LINGER_MS = 2200;
 const MANUFACTURER_PREVIEW_FADE_MS = 260;
 const quickNavSections = [
@@ -179,6 +181,11 @@ const quickNavSections = [
 ] as const;
 
 type QuickNavSectionId = (typeof quickNavSections)[number]['id'];
+type QuickNavScrollLock = {
+  targetId: QuickNavSectionId;
+  targetY: number;
+  releaseAt: number;
+};
 type ManufacturerChipPreview = {
   ship: Ship;
   left: number;
@@ -211,11 +218,6 @@ export default function App() {
     notes: '',
   });
   const featuredTrackRef = useRef<HTMLDivElement | null>(null);
-  const catalogGridRef = useRef<HTMLDivElement | null>(null);
-  const catalogStepLockRef = useRef(false);
-  const catalogStepUnlockTimerRef = useRef<number | null>(null);
-  const catalogStepLastDirRef = useRef<1 | -1 | 0>(0);
-  const catalogStepLastTimeRef = useRef(0);
   const sectionSnapLockRef = useRef(false);
   const sectionSnapUnlockTimerRef = useRef<number | null>(null);
   const tiltHoverRef = useRef<HTMLElement | null>(null);
@@ -232,9 +234,13 @@ export default function App() {
     velocity: 0,
   });
   const featuredInertiaRef = useRef<number | null>(null);
+  const featuredGlideRef = useRef<number | null>(null);
+  const featuredGlideStateRef = useRef<{ start: number; from: number; to: number; duration: number } | null>(null);
   const featuredVelocityRef = useRef(0);
   const featuredLastFrameRef = useRef(0);
   const featuredInputRhythmRef = useRef({ lastInput: 0, streak: 0 });
+  const smoothScrollFrameRef = useRef<number | null>(null);
+  const quickNavScrollLockRef = useRef<QuickNavScrollLock | null>(null);
   const noticeTimeoutRef = useRef<number | null>(null);
   const manufacturerPreviewHoldRef = useRef<number | null>(null);
   const manufacturerPreviewFadeRef = useRef<number | null>(null);
@@ -282,10 +288,50 @@ export default function App() {
     }, 2200);
   };
 
+  const smoothScrollToY = (targetTop: number, durationHint = 320) => {
+    const topLimit = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+    const target = Math.max(0, Math.min(topLimit, targetTop));
+    const from = window.scrollY;
+    const distance = target - from;
+    if (Math.abs(distance) < 1) {
+      window.scrollTo(0, target);
+      return;
+    }
+
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      window.scrollTo(0, target);
+      return;
+    }
+
+    if (smoothScrollFrameRef.current !== null) {
+      cancelAnimationFrame(smoothScrollFrameRef.current);
+      smoothScrollFrameRef.current = null;
+    }
+
+    const duration = Math.max(170, Math.min(520, durationHint + Math.min(120, Math.abs(distance) * 0.07)));
+    const started = performance.now();
+    const easeOutQuint = (value: number) => 1 - Math.pow(1 - value, 5);
+
+    const step = (now: number) => {
+      const progress = Math.min(1, (now - started) / duration);
+      const eased = easeOutQuint(progress);
+      window.scrollTo(0, from + distance * eased);
+      if (progress < 1) {
+        smoothScrollFrameRef.current = requestAnimationFrame(step);
+      } else {
+        smoothScrollFrameRef.current = null;
+      }
+    };
+
+    smoothScrollFrameRef.current = requestAnimationFrame(step);
+  };
+
   const scrollToCatalog = () => {
     const section = document.getElementById('catalog');
     if (section) {
-      section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const headerOffset = 92;
+      const top = section.getBoundingClientRect().top + window.scrollY - headerOffset;
+      smoothScrollToY(top, 320);
     }
   };
 
@@ -294,7 +340,15 @@ export default function App() {
     if (!section) {
       return;
     }
-    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const headerOffset = 92;
+    const top = section.getBoundingClientRect().top + window.scrollY - headerOffset;
+    const clampedTop = Math.max(0, top);
+    quickNavScrollLockRef.current = {
+      targetId: id,
+      targetY: clampedTop,
+      releaseAt: performance.now() + 960,
+    };
+    smoothScrollToY(clampedTop, 300);
     setActiveQuickNavSection(id);
   };
 
@@ -350,7 +404,7 @@ export default function App() {
   };
 
   const onFeaturedCardMouseMove = (event: ReactMouseEvent<HTMLElement>) => {
-    applyCardTilt(event.currentTarget, event.clientX, event.clientY, 0.82);
+    applyCardTilt(event.currentTarget, event.clientX, event.clientY, 1.28);
   };
 
   const onFeaturedCardMouseLeave = (event: ReactMouseEvent<HTMLElement>) => {
@@ -437,6 +491,14 @@ export default function App() {
     }
     featuredVelocityRef.current = 0;
     featuredLastFrameRef.current = 0;
+  };
+
+  const stopFeaturedGlide = () => {
+    if (featuredGlideRef.current !== null) {
+      cancelAnimationFrame(featuredGlideRef.current);
+      featuredGlideRef.current = null;
+    }
+    featuredGlideStateRef.current = null;
   };
 
   const setFeaturedPlasma = (power: number) => {
@@ -526,6 +588,62 @@ export default function App() {
     featuredInertiaRef.current = requestAnimationFrame(step);
   };
 
+  const glideFeaturedBy = (distance: number, durationHint = 220) => {
+    const track = featuredTrackRef.current;
+    if (!track || Math.abs(distance) < 0.5) {
+      return;
+    }
+
+    const now = performance.now();
+    const duration = Math.max(FEATURED_GLIDE_MIN_MS, Math.min(FEATURED_GLIDE_MAX_MS, durationHint));
+    const easeOutQuart = (value: number) => 1 - Math.pow(1 - value, 4);
+
+    let from = track.scrollLeft;
+    let to = from + distance;
+    const running = featuredGlideStateRef.current;
+    if (running) {
+      const progress = Math.min(1, Math.max(0, (now - running.start) / running.duration));
+      const eased = easeOutQuart(progress);
+      from = running.from + (running.to - running.from) * eased;
+      to = running.to + distance;
+    }
+
+    featuredGlideStateRef.current = {
+      start: now,
+      from,
+      to,
+      duration,
+    };
+
+    if (featuredGlideRef.current !== null) {
+      return;
+    }
+
+    const step = (timestamp: number) => {
+      const state = featuredGlideStateRef.current;
+      const nextTrack = featuredTrackRef.current;
+      if (!state || !nextTrack) {
+        featuredGlideRef.current = null;
+        featuredGlideStateRef.current = null;
+        return;
+      }
+
+      const progress = Math.min(1, Math.max(0, (timestamp - state.start) / state.duration));
+      const eased = easeOutQuart(progress);
+      nextTrack.scrollLeft = state.from + (state.to - state.from) * eased;
+      keepFeaturedLooped();
+
+      if (progress < 1) {
+        featuredGlideRef.current = requestAnimationFrame(step);
+      } else {
+        featuredGlideRef.current = null;
+        featuredGlideStateRef.current = null;
+      }
+    };
+
+    featuredGlideRef.current = requestAnimationFrame(step);
+  };
+
   const onFeaturedPointerDown = (event: PointerEvent<HTMLDivElement>) => {
     const track = featuredTrackRef.current;
     if (!track) {
@@ -538,6 +656,7 @@ export default function App() {
     if (target.closest('button, a, input, select, textarea')) {
       return;
     }
+    stopFeaturedGlide();
     stopFeaturedInertia();
     setFeaturedPlasma(0);
     featuredPointerIdRef.current = event.pointerId;
@@ -637,7 +756,8 @@ export default function App() {
     const shift = Math.min(620, track.clientWidth * 1.05);
     const boost = getFeaturedInputBoost();
     const shiftWithBoost = shift * Math.min(1.75, 1 + (boost - 1) * 0.55);
-    track.scrollBy({ left: direction * shiftWithBoost, behavior: 'smooth' });
+    const glideDuration = FEATURED_GLIDE_MAX_MS - Math.min(180, (boost - 1) * 92);
+    glideFeaturedBy(direction * shiftWithBoost, glideDuration);
     const impulseBase = 1.1 + shift / 600;
     const impulse = -direction * Math.min(5.4, impulseBase * boost * 1.25);
     applyFeaturedInertia(impulse, 'add');
@@ -653,8 +773,9 @@ export default function App() {
     const modeMultiplier = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1;
     const pixelDelta = delta * modeMultiplier;
     const boost = getFeaturedInputBoost();
-    track.scrollLeft += pixelDelta * (0.78 + Math.min(0.42, (boost - 1) * 0.22));
-    keepFeaturedLooped();
+    const wheelDistance = pixelDelta * (0.78 + Math.min(0.42, (boost - 1) * 0.22));
+    const wheelDuration = FEATURED_GLIDE_MIN_MS + 60;
+    glideFeaturedBy(wheelDistance, wheelDuration);
     const impulsePerPixel = FEATURED_WHEEL_IMPULSE_BASE + Math.min(0.0032, (boost - 1) * 0.0011);
     applyFeaturedInertia(-pixelDelta * impulsePerPixel, 'add');
   };
@@ -663,99 +784,9 @@ export default function App() {
     keepFeaturedLooped();
   };
 
-  const getCatalogStepTargets = (grid: HTMLDivElement) => {
-    const cards = Array.from(grid.children).filter(
-      (node): node is HTMLElement => node instanceof HTMLElement,
-    );
-    if (cards.length === 0) {
-      return [];
-    }
-
-    const uniqueTops: number[] = [];
-    for (const card of cards) {
-      const top = Math.round(card.getBoundingClientRect().top + window.scrollY);
-      if (!uniqueTops.some((value) => Math.abs(value - top) < 6)) {
-        uniqueTops.push(top);
-      }
-    }
-    uniqueTops.sort((a, b) => a - b);
-    return uniqueTops;
-  };
-
-  const onCatalogStepWheel = (event: WheelEvent<HTMLDivElement>) => {
-    if (window.innerWidth < 1280 || event.ctrlKey || event.metaKey || event.shiftKey) {
-      return;
-    }
-    const grid = catalogGridRef.current;
-    if (!grid || displayedShips.length < 4) {
-      return;
-    }
-
-    const delta = Math.abs(event.deltaY) >= Math.abs(event.deltaX) ? event.deltaY : event.deltaX;
-    if (Math.abs(delta) < 8) {
-      return;
-    }
-
-    const direction: 1 | -1 = delta > 0 ? 1 : -1;
-    const now = performance.now();
-    if (catalogStepLockRef.current) {
-      const lastDir = catalogStepLastDirRef.current;
-      const elapsed = now - catalogStepLastTimeRef.current;
-      if (lastDir !== 0 && lastDir !== direction && elapsed > 140) {
-        catalogStepLockRef.current = false;
-      } else {
-        event.preventDefault();
-        return;
-      }
-    }
-
-    const targets = getCatalogStepTargets(grid);
-    if (targets.length < 2) {
-      return;
-    }
-
-    const headerOffset = 104;
-    const probeY = window.scrollY + headerOffset;
-    let currentIndex = 0;
-    for (let index = 0; index < targets.length; index += 1) {
-      if (probeY >= targets[index] - 2) {
-        currentIndex = index;
-      } else {
-        break;
-      }
-    }
-
-    const nextIndex = Math.max(0, Math.min(targets.length - 1, currentIndex + direction));
-    if (nextIndex === currentIndex) {
-      return;
-    }
-
-    event.preventDefault();
-    catalogStepLockRef.current = true;
-    catalogStepLastDirRef.current = direction;
-    catalogStepLastTimeRef.current = now;
-    window.scrollTo({
-      top: Math.max(0, targets[nextIndex] - headerOffset),
-      behavior: 'smooth',
-    });
-
-    if (catalogStepUnlockTimerRef.current !== null) {
-      clearTimeout(catalogStepUnlockTimerRef.current);
-    }
-    catalogStepUnlockTimerRef.current = window.setTimeout(() => {
-      catalogStepLockRef.current = false;
-      catalogStepUnlockTimerRef.current = null;
-      catalogStepLastDirRef.current = 0;
-    }, 520);
-  };
-
   useEffect(() => {
     return () => {
       stopFeaturedInertia();
-      if (catalogStepUnlockTimerRef.current !== null) {
-        clearTimeout(catalogStepUnlockTimerRef.current);
-        catalogStepUnlockTimerRef.current = null;
-      }
       if (sectionSnapUnlockTimerRef.current !== null) {
         clearTimeout(sectionSnapUnlockTimerRef.current);
         sectionSnapUnlockTimerRef.current = null;
@@ -764,6 +795,12 @@ export default function App() {
       if (noticeTimeoutRef.current !== null) {
         clearTimeout(noticeTimeoutRef.current);
       }
+      stopFeaturedGlide();
+      if (smoothScrollFrameRef.current !== null) {
+        cancelAnimationFrame(smoothScrollFrameRef.current);
+        smoothScrollFrameRef.current = null;
+      }
+      quickNavScrollLockRef.current = null;
     };
   }, []);
 
@@ -829,12 +866,28 @@ export default function App() {
         return;
       }
 
+      const currentTop = Math.max(0, sectionTops[currentIndex] - headerOffset);
+      const currentBottom =
+        currentIndex < sectionTops.length - 1
+          ? Math.max(currentTop, sectionTops[currentIndex + 1] - headerOffset)
+          : Math.max(currentTop, document.documentElement.scrollHeight - window.innerHeight);
+
+      const viewTop = window.scrollY;
+      const viewBottom = window.scrollY + window.innerHeight;
+      const remainingDown = currentBottom - viewBottom;
+      const remainingUp = viewTop - currentTop;
+      const sectionSnapThreshold = 24;
+
+      if (direction > 0 && remainingDown > sectionSnapThreshold) {
+        return;
+      }
+      if (direction < 0 && remainingUp > sectionSnapThreshold) {
+        return;
+      }
+
       event.preventDefault();
       sectionSnapLockRef.current = true;
-      window.scrollTo({
-        top: Math.max(0, sectionTops[nextIndex] - headerOffset),
-        behavior: 'smooth',
-      });
+      smoothScrollToY(Math.max(0, sectionTops[nextIndex] - headerOffset), 260);
 
       if (sectionSnapUnlockTimerRef.current !== null) {
         clearTimeout(sectionSnapUnlockTimerRef.current);
@@ -1065,6 +1118,17 @@ export default function App() {
 
     let frameId: number | null = null;
     const updateActiveSection = () => {
+      const quickNavLock = quickNavScrollLockRef.current;
+      if (quickNavLock) {
+        const reachedTarget = Math.abs(window.scrollY - quickNavLock.targetY) <= 10;
+        const timedOut = performance.now() >= quickNavLock.releaseAt;
+        if (!reachedTarget && !timedOut) {
+          setActiveQuickNavSection((prev) => (prev === quickNavLock.targetId ? prev : quickNavLock.targetId));
+          return;
+        }
+        quickNavScrollLockRef.current = null;
+      }
+
       const probe = window.scrollY + window.innerHeight * 0.42;
       let currentId = sectionNodes[0].id as QuickNavSectionId;
 
@@ -1076,7 +1140,30 @@ export default function App() {
         break;
       }
 
-      setActiveQuickNavSection((prev) => (prev === currentId ? prev : currentId));
+      setActiveQuickNavSection((prev) => {
+        if (prev === currentId) {
+          return prev;
+        }
+
+        const previousIndex = sectionNodes.findIndex((section) => section.id === prev);
+        const nextIndex = sectionNodes.findIndex((section) => section.id === currentId);
+        if (previousIndex < 0 || nextIndex < 0) {
+          return currentId;
+        }
+
+        const transitionIndex = Math.max(previousIndex, nextIndex);
+        const transitionTop = sectionNodes[transitionIndex].offsetTop - 96;
+        const hysteresis = 22;
+
+        if (nextIndex > previousIndex && probe < transitionTop + hysteresis) {
+          return prev;
+        }
+        if (nextIndex < previousIndex && probe > transitionTop - hysteresis) {
+          return prev;
+        }
+
+        return currentId;
+      });
     };
 
     const onScroll = () => {
@@ -1181,7 +1268,8 @@ export default function App() {
     setSelectedShip(null);
     const contact = document.getElementById('contact');
     if (contact) {
-      contact.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const top = contact.getBoundingClientRect().top + window.scrollY - 92;
+      smoothScrollToY(top, 320);
     }
   };
 
@@ -1312,9 +1400,9 @@ export default function App() {
                         <p className="mt-1 font-rajdhani text-sm text-text-light/70">
                           {classLabels[ship.class]} / Экипаж {ship.crewMin}-{ship.crewMax}
                         </p>
-                        <p className="mt-2 rounded-md border border-cyan-holo/25 bg-dark-navy/50 px-2.5 py-1.5 font-rajdhani text-sm leading-snug text-text-light/72">
-                          {compactDescription}
-                        </p>
+                        <div className="ship-copy-box mt-2 px-2.5 py-1.5">
+                          <p className="ship-copy-text ship-copy-text-compact">{compactDescription}</p>
+                        </div>
                         <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
                           <p className="font-orbitron text-3xl text-amber-ui">${(ship.priceUsd / 1000).toFixed(0)}K</p>
                           <div className="grid grid-cols-2 gap-2 sm:justify-items-end">
@@ -1399,11 +1487,7 @@ export default function App() {
               )}
 
               {displayedShips.length > 0 ? (
-                <div
-                  ref={catalogGridRef}
-                  onWheel={onCatalogStepWheel}
-                  className="catalog-step-grid grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3"
-                >
+                <div className="catalog-step-grid grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
                   {displayedShips.map((ship) => (
                     <ShipCard
                       key={ship.id}
