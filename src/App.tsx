@@ -331,13 +331,14 @@ export default function App() {
     smoothScrollCssBehaviorRef.current = html.style.scrollBehavior;
     html.style.scrollBehavior = 'auto';
 
-    const duration = Math.max(170, Math.min(520, durationHint + Math.min(120, Math.abs(distance) * 0.07)));
+    const duration = Math.max(180, Math.min(480, durationHint + Math.min(95, Math.abs(distance) * 0.055)));
     const started = performance.now();
-    const easeOutQuint = (value: number) => 1 - Math.pow(1 - value, 5);
+    const easeInOutQuint = (value: number) =>
+      value < 0.5 ? 16 * value * value * value * value * value : 1 - Math.pow(-2 * value + 2, 5) / 2;
 
     const step = (now: number) => {
       const progress = Math.min(1, (now - started) / duration);
-      const eased = easeOutQuint(progress);
+      const eased = easeInOutQuint(progress);
       window.scrollTo(0, from + distance * eased);
       if (progress < 1) {
         smoothScrollFrameRef.current = requestAnimationFrame(step);
