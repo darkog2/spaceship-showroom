@@ -1,4 +1,4 @@
-﻿import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 export type OrbitSection = {
@@ -18,9 +18,7 @@ const GLIDE_SNAP = 0.001;
 export default function SectionOrbitNav({ sections, activeId, onJump }: Props) {
   const activeIndex = Math.max(0, sections.findIndex((section) => section.id === activeId));
   const [displayIndex, setDisplayIndex] = useState(activeIndex);
-
   const displayIndexRef = useRef(activeIndex);
-  const targetIndexRef = useRef(activeIndex);
   const frameRef = useRef<number | null>(null);
   const lastFrameRef = useRef<number | null>(null);
 
@@ -37,32 +35,26 @@ export default function SectionOrbitNav({ sections, activeId, onJump }: Props) {
 
   useEffect(() => {
     const maxIndex = Math.max(0, sections.length - 1);
-    const clampedDisplay = Math.min(maxIndex, Math.max(0, displayIndexRef.current));
-    const clampedTarget = Math.min(maxIndex, Math.max(0, targetIndexRef.current));
-
-    if (clampedDisplay !== displayIndexRef.current) {
-      displayIndexRef.current = clampedDisplay;
-      setDisplayIndex(clampedDisplay);
+    const clamped = Math.min(maxIndex, Math.max(0, displayIndexRef.current));
+    if (clamped !== displayIndexRef.current) {
+      displayIndexRef.current = clamped;
+      setDisplayIndex(clamped);
     }
-
-    targetIndexRef.current = clampedTarget;
   }, [sections.length]);
 
   useEffect(() => {
     const hasWindow = typeof window !== 'undefined';
     const prefersReducedMotion = hasWindow && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const maxIndex = Math.max(0, sections.length - 1);
-    const clampedTarget = Math.min(maxIndex, Math.max(0, activeIndex));
-
-    targetIndexRef.current = clampedTarget;
+    const targetIndex = Math.min(maxIndex, Math.max(0, activeIndex));
 
     if (prefersReducedMotion) {
       if (frameRef.current !== null) {
         cancelAnimationFrame(frameRef.current);
         frameRef.current = null;
       }
-      displayIndexRef.current = clampedTarget;
-      setDisplayIndex(clampedTarget);
+      displayIndexRef.current = targetIndex;
+      setDisplayIndex(targetIndex);
       lastFrameRef.current = null;
       return;
     }
@@ -73,32 +65,29 @@ export default function SectionOrbitNav({ sections, activeId, onJump }: Props) {
       lastFrameRef.current = timestamp;
 
       const current = displayIndexRef.current;
-      const target = targetIndexRef.current;
-      const displacement = target - current;
-
+      const displacement = targetIndex - current;
       if (Math.abs(displacement) < GLIDE_SNAP) {
-        displayIndexRef.current = target;
-        setDisplayIndex(target);
+        displayIndexRef.current = targetIndex;
+        setDisplayIndex(targetIndex);
         frameRef.current = null;
         lastFrameRef.current = null;
         return;
       }
 
       const alpha = 1 - Math.exp(-GLIDE_RESPONSIVENESS * dt);
-      const nextIndex = current + displacement * alpha;
-      displayIndexRef.current = Math.min(maxIndex, Math.max(0, nextIndex));
-      setDisplayIndex(displayIndexRef.current);
-
+      const next = current + displacement * alpha;
+      const clampedNext = Math.min(maxIndex, Math.max(0, next));
+      displayIndexRef.current = clampedNext;
+      setDisplayIndex(clampedNext);
       frameRef.current = requestAnimationFrame(step);
     };
 
-    if (frameRef.current === null) {
-      frameRef.current = requestAnimationFrame(step);
+    if (frameRef.current !== null) {
+      cancelAnimationFrame(frameRef.current);
+      frameRef.current = null;
+      lastFrameRef.current = null;
     }
-
-    return () => {
-      // keep animation loop alive between target updates
-    };
+    frameRef.current = requestAnimationFrame(step);
   }, [activeIndex, sections.length]);
 
   useEffect(

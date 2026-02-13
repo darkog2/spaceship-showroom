@@ -169,6 +169,8 @@ const FEATURED_DRAG_RELEASE_MULTIPLIER = 6.8;
 const FEATURED_WHEEL_IMPULSE_BASE = 0.0023;
 const FEATURED_GLIDE_MIN_MS = 120;
 const FEATURED_GLIDE_MAX_MS = 340;
+const NAV_SCROLL_OFFSET = 72;
+const QUICK_NAV_SETTLE_MS = 300;
 const MANUFACTURER_PREVIEW_LINGER_MS = 2200;
 const MANUFACTURER_PREVIEW_FADE_MS = 260;
 const quickNavSections = [
@@ -183,8 +185,6 @@ const quickNavSections = [
 type QuickNavSectionId = (typeof quickNavSections)[number]['id'];
 type QuickNavScrollLock = {
   targetId: QuickNavSectionId;
-  targetY: number;
-  releaseAt: number;
 };
 type ManufacturerChipPreview = {
   ship: Ship;
@@ -220,6 +220,8 @@ export default function App() {
   const featuredTrackRef = useRef<HTMLDivElement | null>(null);
   const sectionSnapLockRef = useRef(false);
   const sectionSnapUnlockTimerRef = useRef<number | null>(null);
+  const sectionSnapLastDirectionRef = useRef<1 | -1 | 0>(0);
+  const sectionSnapLastTimeRef = useRef(0);
   const tiltHoverRef = useRef<HTMLElement | null>(null);
   const featuredPointerIdRef = useRef<number | null>(null);
   const featuredDragRef = useRef({
@@ -240,7 +242,10 @@ export default function App() {
   const featuredLastFrameRef = useRef(0);
   const featuredInputRhythmRef = useRef({ lastInput: 0, streak: 0 });
   const smoothScrollFrameRef = useRef<number | null>(null);
+  const smoothScrollCompleteRef = useRef<(() => void) | null>(null);
+  const smoothScrollCssBehaviorRef = useRef<string | null>(null);
   const quickNavScrollLockRef = useRef<QuickNavScrollLock | null>(null);
+  const quickNavSettleRef = useRef<{ id: QuickNavSectionId; until: number } | null>(null);
   const noticeTimeoutRef = useRef<number | null>(null);
   const manufacturerPreviewHoldRef = useRef<number | null>(null);
   const manufacturerPreviewFadeRef = useRef<number | null>(null);
@@ -288,25 +293,43 @@ export default function App() {
     }, 2200);
   };
 
-  const smoothScrollToY = (targetTop: number, durationHint = 320) => {
-    const topLimit = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+  const smoothScrollToY = (targetTop: number, durationHint = 320, onComplete?: () => void) => {
+    const html = document.documentElement;
+    const topLimit = Math.max(0, html.scrollHeight - window.innerHeight);
     const target = Math.max(0, Math.min(topLimit, targetTop));
     const from = window.scrollY;
     const distance = target - from;
+
+    if (smoothScrollCssBehaviorRef.current !== null) {
+      html.style.scrollBehavior = smoothScrollCssBehaviorRef.current;
+      smoothScrollCssBehaviorRef.current = null;
+    }
+
     if (Math.abs(distance) < 1) {
+      const prevBehavior = html.style.scrollBehavior;
+      html.style.scrollBehavior = 'auto';
       window.scrollTo(0, target);
-      return;
+      html.style.scrollBehavior = prevBehavior;
+      onComplete?.();
+      return 0;
     }
 
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      const prevBehavior = html.style.scrollBehavior;
+      html.style.scrollBehavior = 'auto';
       window.scrollTo(0, target);
-      return;
+      html.style.scrollBehavior = prevBehavior;
+      onComplete?.();
+      return 0;
     }
 
     if (smoothScrollFrameRef.current !== null) {
       cancelAnimationFrame(smoothScrollFrameRef.current);
       smoothScrollFrameRef.current = null;
     }
+    smoothScrollCompleteRef.current = null;
+    smoothScrollCssBehaviorRef.current = html.style.scrollBehavior;
+    html.style.scrollBehavior = 'auto';
 
     const duration = Math.max(170, Math.min(520, durationHint + Math.min(120, Math.abs(distance) * 0.07)));
     const started = performance.now();
@@ -320,16 +343,25 @@ export default function App() {
         smoothScrollFrameRef.current = requestAnimationFrame(step);
       } else {
         smoothScrollFrameRef.current = null;
+        if (smoothScrollCssBehaviorRef.current !== null) {
+          html.style.scrollBehavior = smoothScrollCssBehaviorRef.current;
+          smoothScrollCssBehaviorRef.current = null;
+        }
+        const finish = smoothScrollCompleteRef.current;
+        smoothScrollCompleteRef.current = null;
+        finish?.();
       }
     };
 
+    smoothScrollCompleteRef.current = onComplete ?? null;
     smoothScrollFrameRef.current = requestAnimationFrame(step);
+    return duration;
   };
 
   const scrollToCatalog = () => {
     const section = document.getElementById('catalog');
     if (section) {
-      const headerOffset = 92;
+      const headerOffset = NAV_SCROLL_OFFSET;
       const top = section.getBoundingClientRect().top + window.scrollY - headerOffset;
       smoothScrollToY(top, 320);
     }
@@ -340,16 +372,28 @@ export default function App() {
     if (!section) {
       return;
     }
-    const headerOffset = 92;
+    const headerOffset = NAV_SCROLL_OFFSET;
     const top = section.getBoundingClientRect().top + window.scrollY - headerOffset;
-    const clampedTop = Math.max(0, top);
+    const topLimit = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+    const clampedTop = Math.max(0, Math.min(topLimit, top));
+
+    quickNavSettleRef.current = null;
     quickNavScrollLockRef.current = {
       targetId: id,
-      targetY: clampedTop,
-      releaseAt: performance.now() + 960,
     };
-    smoothScrollToY(clampedTop, 300);
+
     setActiveQuickNavSection(id);
+    smoothScrollToY(clampedTop, 450, () => {
+      const lock = quickNavScrollLockRef.current;
+      if (!lock || lock.targetId !== id) {
+        return;
+      }
+      quickNavSettleRef.current = {
+        id,
+        until: performance.now() + QUICK_NAV_SETTLE_MS,
+      };
+      quickNavScrollLockRef.current = null;
+    });
   };
 
   const getFeaturedInputBoost = () => {
@@ -800,7 +844,13 @@ export default function App() {
         cancelAnimationFrame(smoothScrollFrameRef.current);
         smoothScrollFrameRef.current = null;
       }
+      smoothScrollCompleteRef.current = null;
+      if (smoothScrollCssBehaviorRef.current !== null) {
+        document.documentElement.style.scrollBehavior = smoothScrollCssBehaviorRef.current;
+        smoothScrollCssBehaviorRef.current = null;
+      }
       quickNavScrollLockRef.current = null;
+      quickNavSettleRef.current = null;
     };
   }, []);
 
@@ -814,6 +864,10 @@ export default function App() {
       if (overlayOpen || window.innerWidth < 1200) {
         return;
       }
+      if (quickNavScrollLockRef.current) {
+        event.preventDefault();
+        return;
+      }
       if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.shiftKey) {
         return;
       }
@@ -822,15 +876,49 @@ export default function App() {
       if (!target) {
         return;
       }
-      if (target.closest('#catalog, .featured-loop-track, .section-orbit')) {
-        return;
-      }
 
       const delta = Math.abs(event.deltaY) >= Math.abs(event.deltaX) ? event.deltaY : event.deltaX;
       if (Math.abs(delta) < 12) {
         return;
       }
       const direction: 1 | -1 = delta > 0 ? 1 : -1;
+
+      if (target.closest('.featured-loop-track, .section-orbit')) {
+        return;
+      }
+
+      const inCatalog = target.closest('#catalog');
+      if (inCatalog) {
+        const catalogSection = document.getElementById('catalog');
+        const featuredSection = document.getElementById('featured');
+        if (catalogSection && featuredSection) {
+          const catalogTop = catalogSection.getBoundingClientRect().top + window.scrollY - NAV_SCROLL_OFFSET;
+          const featuredBottom = featuredSection.getBoundingClientRect().bottom + window.scrollY - NAV_SCROLL_OFFSET;
+          const nearCatalogTop = window.scrollY <= catalogTop + 14;
+          const nearFeaturedLine = Math.abs(window.scrollY - featuredBottom) <= 22;
+          if (!(direction < 0 && (nearCatalogTop || nearFeaturedLine))) {
+            return;
+          }
+        } else {
+          return;
+        }
+      }
+
+      if (sectionSnapLockRef.current) {
+        const elapsed = performance.now() - sectionSnapLastTimeRef.current;
+        const lastDirection = sectionSnapLastDirectionRef.current;
+        const canBreakLock = lastDirection !== 0 && lastDirection !== direction && elapsed > 90;
+        if (canBreakLock) {
+          sectionSnapLockRef.current = false;
+          if (sectionSnapUnlockTimerRef.current !== null) {
+            clearTimeout(sectionSnapUnlockTimerRef.current);
+            sectionSnapUnlockTimerRef.current = null;
+          }
+        } else {
+          event.preventDefault();
+          return;
+        }
+      }
 
       if (sectionSnapLockRef.current) {
         event.preventDefault();
@@ -850,7 +938,7 @@ export default function App() {
         return;
       }
 
-      const headerOffset = 92;
+      const headerOffset = NAV_SCROLL_OFFSET;
       const probeY = window.scrollY + headerOffset;
       let currentIndex = 0;
       for (let index = 0; index < sectionTops.length; index += 1) {
@@ -887,6 +975,8 @@ export default function App() {
 
       event.preventDefault();
       sectionSnapLockRef.current = true;
+      sectionSnapLastDirectionRef.current = direction;
+      sectionSnapLastTimeRef.current = performance.now();
       smoothScrollToY(Math.max(0, sectionTops[nextIndex] - headerOffset), 260);
 
       if (sectionSnapUnlockTimerRef.current !== null) {
@@ -895,7 +985,7 @@ export default function App() {
       sectionSnapUnlockTimerRef.current = window.setTimeout(() => {
         sectionSnapLockRef.current = false;
         sectionSnapUnlockTimerRef.current = null;
-      }, 560);
+      }, 380);
     };
 
     window.addEventListener('wheel', onWindowWheel, { passive: false });
@@ -906,6 +996,8 @@ export default function App() {
         sectionSnapUnlockTimerRef.current = null;
       }
       sectionSnapLockRef.current = false;
+      sectionSnapLastDirectionRef.current = 0;
+      sectionSnapLastTimeRef.current = 0;
     };
   }, [overlayOpen]);
 
@@ -1117,59 +1209,42 @@ export default function App() {
     }
 
     let frameId: number | null = null;
+
     const updateActiveSection = () => {
       const quickNavLock = quickNavScrollLockRef.current;
+
       if (quickNavLock) {
-        const reachedTarget = Math.abs(window.scrollY - quickNavLock.targetY) <= 10;
-        const timedOut = performance.now() >= quickNavLock.releaseAt;
-        if (!reachedTarget && !timedOut) {
-          setActiveQuickNavSection((prev) => (prev === quickNavLock.targetId ? prev : quickNavLock.targetId));
-          return;
-        }
-        quickNavScrollLockRef.current = null;
+        // Hard lock: do not recompute active section while jump is in progress.
+        setActiveQuickNavSection((prev) => (prev === quickNavLock.targetId ? prev : quickNavLock.targetId));
+        return;
       }
+
+      const settle = quickNavSettleRef.current;
+      if (settle && performance.now() < settle.until) {
+        setActiveQuickNavSection(settle.id);
+        return;
+      }
+      quickNavSettleRef.current = null;
 
       const probe = window.scrollY + window.innerHeight * 0.42;
       let currentId = sectionNodes[0].id as QuickNavSectionId;
 
       for (const section of sectionNodes) {
-        if (probe >= section.offsetTop - 96) {
+        if (probe >= section.offsetTop) {
           currentId = section.id as QuickNavSectionId;
-          continue;
+        } else {
+          break;
         }
-        break;
       }
 
-      setActiveQuickNavSection((prev) => {
-        if (prev === currentId) {
-          return prev;
-        }
-
-        const previousIndex = sectionNodes.findIndex((section) => section.id === prev);
-        const nextIndex = sectionNodes.findIndex((section) => section.id === currentId);
-        if (previousIndex < 0 || nextIndex < 0) {
-          return currentId;
-        }
-
-        const transitionIndex = Math.max(previousIndex, nextIndex);
-        const transitionTop = sectionNodes[transitionIndex].offsetTop - 96;
-        const hysteresis = 22;
-
-        if (nextIndex > previousIndex && probe < transitionTop + hysteresis) {
-          return prev;
-        }
-        if (nextIndex < previousIndex && probe > transitionTop - hysteresis) {
-          return prev;
-        }
-
-        return currentId;
-      });
+      setActiveQuickNavSection(currentId);
     };
 
     const onScroll = () => {
       if (frameId !== null) {
         return;
       }
+
       frameId = requestAnimationFrame(() => {
         frameId = null;
         updateActiveSection();
@@ -1179,6 +1254,7 @@ export default function App() {
     updateActiveSection();
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', updateActiveSection);
+
     return () => {
       if (frameId !== null) {
         cancelAnimationFrame(frameId);
@@ -1268,7 +1344,7 @@ export default function App() {
     setSelectedShip(null);
     const contact = document.getElementById('contact');
     if (contact) {
-      const top = contact.getBoundingClientRect().top + window.scrollY - 92;
+      const top = contact.getBoundingClientRect().top + window.scrollY - NAV_SCROLL_OFFSET;
       smoothScrollToY(top, 320);
     }
   };
