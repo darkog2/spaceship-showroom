@@ -199,6 +199,16 @@ export default function ShipDetail({
               </div>
             </div>
 
+
+
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <button className="btn-primary flex-1" type="button" onClick={() => onReserveShip(ship)}>
+                ЗАБРОНИРОВАТЬ КОРАБЛЬ
+              </button>
+              <button className="btn-secondary flex-1" type="button" onClick={() => onRequestTechSheet(ship)}>
+                ЗАПРОСИТЬ ПОЛНОЕ ТЗ
+              </button>
+            </div>
             <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
               {ship.images.map((image, index) => (
                 <button
@@ -332,17 +342,11 @@ export default function ShipDetail({
               </div>
             </section>
 
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <button className="btn-primary flex-1" type="button" onClick={() => onReserveShip(ship)}>
-                ЗАБРОНИРОВАТЬ КОРАБЛЬ
-              </button>
-              <button className="btn-secondary flex-1" type="button" onClick={() => onRequestTechSheet(ship)}>
-                ЗАПРОСИТЬ ПОЛНОЕ ТЗ
-              </button>
-            </div>
+
           </div>
         </div>
       </div>
     </div>
   );
 }
+

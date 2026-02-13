@@ -331,7 +331,7 @@ export default function App() {
     smoothScrollCssBehaviorRef.current = html.style.scrollBehavior;
     html.style.scrollBehavior = 'auto';
 
-    const duration = Math.max(180, Math.min(480, durationHint + Math.min(95, Math.abs(distance) * 0.055)));
+    const duration = Math.max(320, Math.min(980, durationHint + Math.min(280, Math.abs(distance) * 0.15)));
     const started = performance.now();
     const easeInOutQuint = (value: number) =>
       value < 0.5 ? 16 * value * value * value * value * value : 1 - Math.pow(-2 * value + 2, 5) / 2;
@@ -384,7 +384,7 @@ export default function App() {
     };
 
     setActiveQuickNavSection(id);
-    smoothScrollToY(clampedTop, 450, () => {
+    smoothScrollToY(clampedTop, 760, () => {
       const lock = quickNavScrollLockRef.current;
       if (!lock || lock.targetId !== id) {
         return;
