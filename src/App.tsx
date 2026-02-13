@@ -178,6 +178,7 @@ const FEATURED_DOCK_MAX_MS = 640;
 const FEATURED_DOCK_MIN_DISTANCE = 0.6;
 const FEATURED_DOCK_VELOCITY_EPS = 0.04;
 const FEATURED_DOCK_FINAL_CORRECTION_PX = 1.2;
+const FEATURED_DIRECTION_MIN_DELTA = 0.35;
 const FEATURED_ARROW_PLASMA_POWER = 1.18;
 const FEATURED_ARROW_PLASMA_MS = 340;
 const NAV_SCROLL_OFFSET = 72;
@@ -260,6 +261,8 @@ export default function App() {
   const featuredDockTimerRef = useRef<number | null>(null);
   const featuredArrowPlasmaTimerRef = useRef<number | null>(null);
   const featuredLastMotionAtRef = useRef(0);
+  const featuredLastScrollLeftRef = useRef<number | null>(null);
+  const featuredTravelDirectionRef = useRef<1 | -1 | 0>(0);
   const featuredVelocityRef = useRef(0);
   const featuredLastFrameRef = useRef(0);
   const featuredInputRhythmRef = useRef({ lastInput: 0, streak: 0 });
@@ -586,6 +589,13 @@ export default function App() {
     featuredLastMotionAtRef.current = performance.now();
   };
 
+  const noteFeaturedTravelByScrollDelta = (deltaScrollLeft: number) => {
+    if (Math.abs(deltaScrollLeft) < FEATURED_DIRECTION_MIN_DELTA) {
+      return;
+    }
+    featuredTravelDirectionRef.current = deltaScrollLeft > 0 ? 1 : -1;
+  };
+
   const setFeaturedPlasma = (power: number) => {
     const track = featuredTrackRef.current;
     if (!track) {
@@ -610,6 +620,7 @@ export default function App() {
     } else if (track.scrollLeft > segment * (FEATURED_REPEAT - 1.5)) {
       track.scrollLeft -= segment;
     }
+    featuredLastScrollLeftRef.current = track.scrollLeft;
   };
 
   const igniteFeaturedArrowPlasma = (direction: 1 | -1) => {
@@ -672,7 +683,9 @@ export default function App() {
 
       const dt = Math.min(34, Math.max(8, now - featuredLastFrameRef.current || 16));
       featuredLastFrameRef.current = now;
-      track.scrollLeft -= featuredVelocityRef.current * dt;
+      const deltaScrollLeft = -featuredVelocityRef.current * dt;
+      track.scrollLeft += deltaScrollLeft;
+      noteFeaturedTravelByScrollDelta(deltaScrollLeft);
       keepFeaturedLooped();
       setFeaturedPlasma(Math.min(Math.abs(featuredVelocityRef.current) / 3.15, 1.6));
 
@@ -742,7 +755,10 @@ export default function App() {
 
       const progress = Math.min(1, Math.max(0, (timestamp - state.start) / state.duration));
       const eased = easeOutQuart(progress);
-      nextTrack.scrollLeft = state.from + (state.to - state.from) * eased;
+      const previousScrollLeft = nextTrack.scrollLeft;
+      const nextScrollLeft = state.from + (state.to - state.from) * eased;
+      nextTrack.scrollLeft = nextScrollLeft;
+      noteFeaturedTravelByScrollDelta(nextScrollLeft - previousScrollLeft);
       if (state.keepLooping) {
         keepFeaturedLooped();
       }
@@ -785,6 +801,41 @@ export default function App() {
     });
 
     return closestIndex;
+  };
+
+  const findDirectionalFeaturedCardIndex = (track: HTMLDivElement, cards: HTMLElement[], direction: 1 | -1 | 0) => {
+    if (direction === 0) {
+      return findClosestFeaturedCardIndex(track, cards);
+    }
+
+    const currentScrollLeft = track.scrollLeft;
+    const directionBias = FEATURED_DOCK_FINAL_CORRECTION_PX + 0.45;
+
+    let targetIndex = -1;
+    if (direction > 0) {
+      let minForwardDistance = Number.POSITIVE_INFINITY;
+      cards.forEach((card, index) => {
+        const distance = getFeaturedCardCenterScroll(track, card) - currentScrollLeft;
+        if (distance >= -directionBias && distance < minForwardDistance) {
+          minForwardDistance = distance;
+          targetIndex = index;
+        }
+      });
+    } else {
+      let maxBackwardDistance = Number.NEGATIVE_INFINITY;
+      cards.forEach((card, index) => {
+        const distance = getFeaturedCardCenterScroll(track, card) - currentScrollLeft;
+        if (distance <= directionBias && distance > maxBackwardDistance) {
+          maxBackwardDistance = distance;
+          targetIndex = index;
+        }
+      });
+    }
+
+    if (targetIndex >= 0) {
+      return targetIndex;
+    }
+    return findClosestFeaturedCardIndex(track, cards);
   };
 
   const centerFeaturedCardByLoopIndex = (loopCardIndex: number, options?: { immediate?: boolean; durationHint?: number }) => {
@@ -881,15 +932,9 @@ export default function App() {
       if (cards.length === 0) {
         return;
       }
-      const closestIndex = findClosestFeaturedCardIndex(track, cards);
-      const closestShipId = cards[closestIndex]?.getAttribute('data-ship-id');
-      const baseShipIndex = closestShipId ? featuredCards.findIndex(({ ship }) => ship.id === closestShipId) : -1;
-      const middleLoopIndex = Math.floor(FEATURED_REPEAT / 2);
-      const targetLoopCardIndex =
-        baseShipIndex >= 0
-          ? middleLoopIndex * featuredCards.length + baseShipIndex
-          : Math.max(0, Math.min(cards.length - 1, closestIndex));
-      const targetCard = cards[targetLoopCardIndex] ?? cards[closestIndex];
+      const travelDirection = featuredTravelDirectionRef.current;
+      const targetLoopCardIndex = findDirectionalFeaturedCardIndex(track, cards, travelDirection);
+      const targetCard = cards[targetLoopCardIndex] ?? cards[findClosestFeaturedCardIndex(track, cards)];
       const targetScrollLeft = getFeaturedCardCenterScroll(track, targetCard);
       const distance = targetScrollLeft - track.scrollLeft;
       if (Math.abs(distance) <= FEATURED_DOCK_MIN_DISTANCE) {
@@ -925,6 +970,7 @@ export default function App() {
     stopFeaturedGlide();
     stopFeaturedInertia();
     setFeaturedPlasma(0);
+    featuredLastScrollLeftRef.current = track.scrollLeft;
     featuredPointerIdRef.current = event.pointerId;
     event.currentTarget.setPointerCapture(event.pointerId);
     featuredDragRef.current = {
@@ -959,7 +1005,10 @@ export default function App() {
       event.preventDefault();
     }
     markFeaturedMotion();
-    track.scrollLeft = drag.startScroll - deltaX;
+    const previousScrollLeft = track.scrollLeft;
+    const nextScrollLeft = drag.startScroll - deltaX;
+    track.scrollLeft = nextScrollLeft;
+    noteFeaturedTravelByScrollDelta(nextScrollLeft - previousScrollLeft);
     keepFeaturedLooped();
 
     const now = performance.now();
@@ -1047,6 +1096,7 @@ export default function App() {
     if (Math.abs(distance) < 0.5) {
       return;
     }
+    noteFeaturedTravelByScrollDelta(distance);
 
     const boost = getFeaturedInputBoost();
     const glideDistance = distance * 0.76;
@@ -1077,6 +1127,7 @@ export default function App() {
     const pixelDelta = delta * modeMultiplier;
     const boost = getFeaturedInputBoost();
     const wheelDistance = pixelDelta * (0.78 + Math.min(0.42, (boost - 1) * 0.22));
+    noteFeaturedTravelByScrollDelta(wheelDistance);
     const wheelDuration = FEATURED_GLIDE_MIN_MS + 60;
     glideFeaturedBy(wheelDistance, wheelDuration);
     const impulsePerPixel = FEATURED_WHEEL_IMPULSE_BASE + Math.min(0.0032, (boost - 1) * 0.0011);
@@ -1084,6 +1135,19 @@ export default function App() {
   };
 
   const onFeaturedScroll = () => {
+    const track = featuredTrackRef.current;
+    if (track) {
+      const previousScrollLeft = featuredLastScrollLeftRef.current;
+      if (previousScrollLeft !== null) {
+        const delta = track.scrollLeft - previousScrollLeft;
+        const segment = track.scrollWidth > 0 ? track.scrollWidth / FEATURED_REPEAT : 0;
+        const wrapThreshold = segment > 0 ? segment * 0.45 : Number.POSITIVE_INFINITY;
+        if (Math.abs(delta) <= wrapThreshold) {
+          noteFeaturedTravelByScrollDelta(delta);
+        }
+      }
+      featuredLastScrollLeftRef.current = track.scrollLeft;
+    }
     markFeaturedMotion();
     keepFeaturedLooped();
     scheduleFeaturedDockToCenter();
