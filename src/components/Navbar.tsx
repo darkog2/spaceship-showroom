@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { Menu, Rocket, X } from 'lucide-react';
 
 const navItems = [

@@ -110,28 +110,7 @@ export default function SectionOrbitNav({ sections, activeId, onJump }: Props) {
   };
 
   return (
-    <nav className="section-orbit section-orbit-enhanced" aria-label="Быстрая навигация по разделам">
-      <div className="section-orbit-arrows">
-        <button
-          type="button"
-          aria-label="Перейти к разделу выше"
-          onClick={() => shift(-1)}
-          disabled={!canShiftUp}
-          className="section-orbit-arrow"
-        >
-          <ChevronUp size={16} />
-        </button>
-        <button
-          type="button"
-          aria-label="Перейти к разделу ниже"
-          onClick={() => shift(1)}
-          disabled={!canShiftDown}
-          className="section-orbit-arrow"
-        >
-          <ChevronDown size={16} />
-        </button>
-      </div>
-
+    <nav className="section-orbit section-orbit-enhanced" aria-label="Quick section navigation">
       <div className="section-orbit-shell">
         <div className="section-orbit-track">
           <span className="section-orbit-line" aria-hidden="true" />
@@ -165,6 +144,27 @@ export default function SectionOrbitNav({ sections, activeId, onJump }: Props) {
         <div className="orbit-particle" aria-hidden="true" />
         <div className="orbit-particle" aria-hidden="true" />
         <div className="orbit-particle" aria-hidden="true" />
+      </div>
+
+      <div className="section-orbit-arrows">
+        <button
+          type="button"
+          aria-label="Go to previous section"
+          onClick={() => shift(-1)}
+          disabled={!canShiftUp}
+          className="section-orbit-arrow"
+        >
+          <ChevronUp size={16} />
+        </button>
+        <button
+          type="button"
+          aria-label="Go to next section"
+          onClick={() => shift(1)}
+          disabled={!canShiftDown}
+          className="section-orbit-arrow"
+        >
+          <ChevronDown size={16} />
+        </button>
       </div>
     </nav>
   );

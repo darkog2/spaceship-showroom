@@ -12,7 +12,7 @@
 
 html {
   scroll-behavior: smooth;
-  scroll-padding-top: 84px;
+  scroll-padding-top: 72px;
 }
 
 :root {
@@ -249,7 +249,7 @@ main {
   position: absolute;
   left: 0;
   right: 0;
-  top: 0;
+  top: -1px;
   height: 2px;
   background: linear-gradient(
     90deg,
@@ -371,14 +371,14 @@ main {
 
 .catalog-side-filter-sticky {
   position: sticky;
-  top: 94px;
-  max-height: calc(100vh - 106px);
+  top: 86px;
+  max-height: calc(100dvh - 94px);
   pointer-events: auto;
 }
 
 .catalog-side-filter-sticky > .panel-shell {
   margin-bottom: 0 !important;
-  max-height: calc(100vh - 106px);
+  max-height: calc(100dvh - 94px);
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior: contain;
@@ -417,6 +417,7 @@ main {
 
 .ship-filter-panel--sidebar {
   backdrop-filter: blur(10px);
+  font-size: 0.95rem;
 }
 
 .filter-toggle-btn {
@@ -566,6 +567,50 @@ main {
 
 .range-input:focus-visible::-webkit-slider-thumb {
   box-shadow: 0 0 0 2px rgba(255, 143, 31, 0.35);
+}
+
+.ship-filter-panel--sidebar .range-slider-wrapper {
+  height: 34px;
+  margin: 10px 0 8px;
+}
+
+.ship-filter-panel--sidebar .range-track,
+.ship-filter-panel--sidebar .range-progress {
+  top: 14px;
+  height: 5px;
+}
+
+.ship-filter-panel--sidebar .range-input::-webkit-slider-thumb,
+.ship-filter-panel--sidebar .range-input::-moz-range-thumb {
+  height: 18px;
+  width: 18px;
+}
+
+.ship-filter-panel--sidebar .filter-price-input {
+  padding: 6px 8px;
+  font-size: 13px;
+}
+
+@media (max-height: 860px) {
+  .catalog-side-filter-sticky {
+    top: 80px;
+    max-height: calc(100dvh - 86px);
+  }
+
+  .catalog-side-filter-sticky > .panel-shell {
+    max-height: calc(100dvh - 86px);
+  }
+}
+
+@media (max-height: 760px) {
+  .catalog-side-filter-sticky {
+    top: 76px;
+    max-height: calc(100dvh - 80px);
+  }
+
+  .catalog-side-filter-sticky > .panel-shell {
+    max-height: calc(100dvh - 80px);
+  }
 }
 
 .filter-price-field {
@@ -908,7 +953,7 @@ main {
     position: absolute;
     left: clamp(18px, 3vw, 44px);
     right: clamp(18px, 3vw, 44px);
-    top: 0;
+    top: -1px;
     height: 2px;
     pointer-events: none;
     z-index: 1;

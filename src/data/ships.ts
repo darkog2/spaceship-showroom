@@ -1,4 +1,4 @@
-﻿export type Manufacturer = {
+export type Manufacturer = {
   id: string;
   name: string;
   short: string;

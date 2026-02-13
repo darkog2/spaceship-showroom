@@ -159,6 +159,8 @@ const paymentMethods = [
 ];
 
 const FEATURED_REPEAT = 5;
+const FEATURED_DEFAULT_CENTER_SHIP_ID = 'solstice-r9';
+const FEATURED_LOOP_CARD_SELECTOR = '[data-featured-loop-card="true"]';
 const FEATURED_MAX_VELOCITY = 6.6;
 const FEATURED_MIN_VELOCITY = 0.014;
 const FEATURED_DECAY_PER_FRAME = 0.948;
@@ -169,6 +171,15 @@ const FEATURED_DRAG_RELEASE_MULTIPLIER = 6.8;
 const FEATURED_WHEEL_IMPULSE_BASE = 0.0023;
 const FEATURED_GLIDE_MIN_MS = 120;
 const FEATURED_GLIDE_MAX_MS = 340;
+const FEATURED_DOCK_IDLE_MS = 220;
+const FEATURED_DOCK_RECHECK_MS = 92;
+const FEATURED_DOCK_MIN_MS = 320;
+const FEATURED_DOCK_MAX_MS = 640;
+const FEATURED_DOCK_MIN_DISTANCE = 0.6;
+const FEATURED_DOCK_VELOCITY_EPS = 0.04;
+const FEATURED_DOCK_FINAL_CORRECTION_PX = 1.2;
+const FEATURED_ARROW_PLASMA_POWER = 1.18;
+const FEATURED_ARROW_PLASMA_MS = 340;
 const NAV_SCROLL_OFFSET = 72;
 const QUICK_NAV_SETTLE_MS = 300;
 const MANUFACTURER_PREVIEW_LINGER_MS = 2200;
@@ -206,6 +217,7 @@ export default function App() {
   const [quickViewShip, setQuickViewShip] = useState<Ship | null>(null);
   const [activeManufacturer, setActiveManufacturer] = useState<Manufacturer | null>(null);
   const [activeQuickNavSection, setActiveQuickNavSection] = useState<QuickNavSectionId>('home');
+  const [featuredArrowPulseDirection, setFeaturedArrowPulseDirection] = useState<1 | -1 | 0>(0);
   const [featuredVariantByShip, setFeaturedVariantByShip] = useState<Record<string, number>>({});
   const [manufacturerChipPreview, setManufacturerChipPreview] = useState<ManufacturerChipPreview | null>(null);
   const [checkoutForm, setCheckoutForm] = useState({
@@ -237,7 +249,17 @@ export default function App() {
   });
   const featuredInertiaRef = useRef<number | null>(null);
   const featuredGlideRef = useRef<number | null>(null);
-  const featuredGlideStateRef = useRef<{ start: number; from: number; to: number; duration: number } | null>(null);
+  const featuredGlideStateRef = useRef<{
+    start: number;
+    from: number;
+    to: number;
+    duration: number;
+    keepLooping: boolean;
+    onComplete: (() => void) | null;
+  } | null>(null);
+  const featuredDockTimerRef = useRef<number | null>(null);
+  const featuredArrowPlasmaTimerRef = useRef<number | null>(null);
+  const featuredLastMotionAtRef = useRef(0);
   const featuredVelocityRef = useRef(0);
   const featuredLastFrameRef = useRef(0);
   const featuredInputRhythmRef = useRef({ lastInput: 0, streak: 0 });
@@ -546,6 +568,24 @@ export default function App() {
     featuredGlideStateRef.current = null;
   };
 
+  const clearFeaturedDockTimer = () => {
+    if (featuredDockTimerRef.current !== null) {
+      clearTimeout(featuredDockTimerRef.current);
+      featuredDockTimerRef.current = null;
+    }
+  };
+
+  const clearFeaturedArrowPlasmaTimer = () => {
+    if (featuredArrowPlasmaTimerRef.current !== null) {
+      clearTimeout(featuredArrowPlasmaTimerRef.current);
+      featuredArrowPlasmaTimerRef.current = null;
+    }
+  };
+
+  const markFeaturedMotion = () => {
+    featuredLastMotionAtRef.current = performance.now();
+  };
+
   const setFeaturedPlasma = (power: number) => {
     const track = featuredTrackRef.current;
     if (!track) {
@@ -570,6 +610,23 @@ export default function App() {
     } else if (track.scrollLeft > segment * (FEATURED_REPEAT - 1.5)) {
       track.scrollLeft -= segment;
     }
+  };
+
+  const igniteFeaturedArrowPlasma = (direction: 1 | -1) => {
+    setFeaturedArrowPulseDirection(direction);
+    setFeaturedPlasma(FEATURED_ARROW_PLASMA_POWER);
+    clearFeaturedArrowPlasmaTimer();
+    featuredArrowPlasmaTimerRef.current = window.setTimeout(() => {
+      featuredArrowPlasmaTimerRef.current = null;
+      setFeaturedArrowPulseDirection(0);
+      const isMoving =
+        featuredDragRef.current.active ||
+        featuredGlideRef.current !== null ||
+        Math.abs(featuredVelocityRef.current) >= FEATURED_DOCK_VELOCITY_EPS;
+      if (!isMoving) {
+        setFeaturedPlasma(0);
+      }
+    }, FEATURED_ARROW_PLASMA_MS);
   };
 
   const applyFeaturedInertia = (impulse: number, mode: 'add' | 'replace' = 'add') => {
@@ -633,7 +690,11 @@ export default function App() {
     featuredInertiaRef.current = requestAnimationFrame(step);
   };
 
-  const glideFeaturedBy = (distance: number, durationHint = 220) => {
+  const glideFeaturedBy = (
+    distance: number,
+    durationHint = 220,
+    options?: { keepLooping?: boolean; onComplete?: () => void },
+  ) => {
     const track = featuredTrackRef.current;
     if (!track || Math.abs(distance) < 0.5) {
       return;
@@ -645,12 +706,16 @@ export default function App() {
 
     let from = track.scrollLeft;
     let to = from + distance;
+    let keepLooping = options?.keepLooping ?? true;
+    let onComplete = options?.onComplete ?? null;
     const running = featuredGlideStateRef.current;
     if (running) {
       const progress = Math.min(1, Math.max(0, (now - running.start) / running.duration));
       const eased = easeOutQuart(progress);
       from = running.from + (running.to - running.from) * eased;
       to = running.to + distance;
+      keepLooping = options?.keepLooping ?? running.keepLooping;
+      onComplete = options?.onComplete ?? running.onComplete;
     }
 
     featuredGlideStateRef.current = {
@@ -658,6 +723,8 @@ export default function App() {
       from,
       to,
       duration,
+      keepLooping,
+      onComplete,
     };
 
     if (featuredGlideRef.current !== null) {
@@ -676,17 +743,167 @@ export default function App() {
       const progress = Math.min(1, Math.max(0, (timestamp - state.start) / state.duration));
       const eased = easeOutQuart(progress);
       nextTrack.scrollLeft = state.from + (state.to - state.from) * eased;
-      keepFeaturedLooped();
+      if (state.keepLooping) {
+        keepFeaturedLooped();
+      }
 
       if (progress < 1) {
         featuredGlideRef.current = requestAnimationFrame(step);
       } else {
         featuredGlideRef.current = null;
         featuredGlideStateRef.current = null;
+        state.onComplete?.();
       }
     };
 
     featuredGlideRef.current = requestAnimationFrame(step);
+  };
+
+  const getFeaturedLoopCardElements = () => {
+    const track = featuredTrackRef.current;
+    if (!track) {
+      return [] as HTMLElement[];
+    }
+    return Array.from(track.querySelectorAll<HTMLElement>(FEATURED_LOOP_CARD_SELECTOR));
+  };
+
+  const getFeaturedCardCenterScroll = (track: HTMLDivElement, card: HTMLElement) =>
+    card.offsetLeft + card.offsetWidth / 2 - track.clientWidth / 2;
+
+  const findClosestFeaturedCardIndex = (track: HTMLDivElement, cards: HTMLElement[]) => {
+    const viewportCenter = track.scrollLeft + track.clientWidth / 2;
+    let closestIndex = 0;
+    let closestDistance = Number.POSITIVE_INFINITY;
+
+    cards.forEach((card, index) => {
+      const cardCenter = card.offsetLeft + card.offsetWidth / 2;
+      const distance = Math.abs(cardCenter - viewportCenter);
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestIndex = index;
+      }
+    });
+
+    return closestIndex;
+  };
+
+  const centerFeaturedCardByLoopIndex = (loopCardIndex: number, options?: { immediate?: boolean; durationHint?: number }) => {
+    const track = featuredTrackRef.current;
+    if (!track) {
+      return;
+    }
+
+    const cards = getFeaturedLoopCardElements();
+    if (cards.length === 0) {
+      return;
+    }
+
+    const boundedIndex = Math.max(0, Math.min(cards.length - 1, loopCardIndex));
+    const targetScrollLeft = getFeaturedCardCenterScroll(track, cards[boundedIndex]);
+
+    if (options?.immediate) {
+      track.scrollLeft = targetScrollLeft;
+      keepFeaturedLooped();
+      setFeaturedPlasma(0);
+      return;
+    }
+
+    const distance = targetScrollLeft - track.scrollLeft;
+    if (Math.abs(distance) <= FEATURED_DOCK_MIN_DISTANCE) {
+      track.scrollLeft = targetScrollLeft;
+      keepFeaturedLooped();
+      setFeaturedPlasma(0);
+      return;
+    }
+
+    const dockDuration = options?.durationHint ?? FEATURED_DOCK_MIN_MS;
+    glideFeaturedBy(distance, dockDuration, {
+      keepLooping: true,
+      onComplete: () => {
+        const nextTrack = featuredTrackRef.current;
+        if (!nextTrack) {
+          return;
+        }
+        keepFeaturedLooped();
+        const nextCards = getFeaturedLoopCardElements();
+        const nextCard = nextCards[boundedIndex];
+        if (!nextCard) {
+          setFeaturedPlasma(0);
+          return;
+        }
+        const correction = getFeaturedCardCenterScroll(nextTrack, nextCard) - nextTrack.scrollLeft;
+        if (Math.abs(correction) <= FEATURED_DOCK_FINAL_CORRECTION_PX) {
+          nextTrack.scrollLeft += correction;
+          keepFeaturedLooped();
+          setFeaturedPlasma(0);
+          return;
+        }
+        glideFeaturedBy(correction, Math.max(160, Math.min(280, 120 + Math.abs(correction) * 1.45)), {
+          keepLooping: true,
+          onComplete: () => {
+            keepFeaturedLooped();
+            setFeaturedPlasma(0);
+          },
+        });
+      },
+    });
+  };
+
+  const scheduleFeaturedDockToCenter = (delayMs = FEATURED_DOCK_IDLE_MS) => {
+    clearFeaturedDockTimer();
+    featuredDockTimerRef.current = window.setTimeout(() => {
+      featuredDockTimerRef.current = null;
+      const track = featuredTrackRef.current;
+      if (!track || featuredCards.length === 0) {
+        return;
+      }
+      const idleForMs = performance.now() - featuredLastMotionAtRef.current;
+      if (idleForMs < FEATURED_DOCK_IDLE_MS) {
+        scheduleFeaturedDockToCenter(Math.max(70, FEATURED_DOCK_IDLE_MS - idleForMs + 22));
+        return;
+      }
+      if (featuredDragRef.current.active) {
+        scheduleFeaturedDockToCenter(90);
+        return;
+      }
+      if (featuredGlideRef.current !== null) {
+        scheduleFeaturedDockToCenter(FEATURED_DOCK_RECHECK_MS);
+        return;
+      }
+      if (Math.abs(featuredVelocityRef.current) >= FEATURED_DOCK_VELOCITY_EPS) {
+        scheduleFeaturedDockToCenter(FEATURED_DOCK_RECHECK_MS);
+        return;
+      }
+
+      stopFeaturedInertia();
+      keepFeaturedLooped();
+      const cards = getFeaturedLoopCardElements();
+      if (cards.length === 0) {
+        return;
+      }
+      const closestIndex = findClosestFeaturedCardIndex(track, cards);
+      const closestShipId = cards[closestIndex]?.getAttribute('data-ship-id');
+      const baseShipIndex = closestShipId ? featuredCards.findIndex(({ ship }) => ship.id === closestShipId) : -1;
+      const middleLoopIndex = Math.floor(FEATURED_REPEAT / 2);
+      const targetLoopCardIndex =
+        baseShipIndex >= 0
+          ? middleLoopIndex * featuredCards.length + baseShipIndex
+          : Math.max(0, Math.min(cards.length - 1, closestIndex));
+      const targetCard = cards[targetLoopCardIndex] ?? cards[closestIndex];
+      const targetScrollLeft = getFeaturedCardCenterScroll(track, targetCard);
+      const distance = targetScrollLeft - track.scrollLeft;
+      if (Math.abs(distance) <= FEATURED_DOCK_MIN_DISTANCE) {
+        track.scrollLeft = targetScrollLeft;
+        keepFeaturedLooped();
+        setFeaturedPlasma(0);
+        return;
+      }
+
+      const dockDuration = Math.max(FEATURED_DOCK_MIN_MS, Math.min(FEATURED_DOCK_MAX_MS, 220 + Math.abs(distance) * 0.32));
+      const dockPlasma = Math.min(FEATURED_ARROW_PLASMA_POWER, Math.max(0.2, Math.abs(distance) / 180));
+      setFeaturedPlasma(dockPlasma);
+      centerFeaturedCardByLoopIndex(targetLoopCardIndex, { durationHint: dockDuration });
+    }, delayMs);
   };
 
   const onFeaturedPointerDown = (event: PointerEvent<HTMLDivElement>) => {
@@ -701,6 +918,10 @@ export default function App() {
     if (target.closest('button, a, input, select, textarea')) {
       return;
     }
+    markFeaturedMotion();
+    clearFeaturedDockTimer();
+    clearFeaturedArrowPlasmaTimer();
+    setFeaturedArrowPulseDirection(0);
     stopFeaturedGlide();
     stopFeaturedInertia();
     setFeaturedPlasma(0);
@@ -737,6 +958,7 @@ export default function App() {
     if (drag.moved) {
       event.preventDefault();
     }
+    markFeaturedMotion();
     track.scrollLeft = drag.startScroll - deltaX;
     keepFeaturedLooped();
 
@@ -791,21 +1013,55 @@ export default function App() {
       drag.velocity = 0;
       setFeaturedPlasma(0);
     }
+    scheduleFeaturedDockToCenter(FEATURED_DOCK_IDLE_MS + 40);
   };
 
   const scrollFeatured = (direction: 1 | -1) => {
     const track = featuredTrackRef.current;
-    if (!track) {
+    if (!track || featuredCards.length === 0) {
       return;
     }
-    const shift = Math.min(620, track.clientWidth * 1.05);
+
+    const cards = getFeaturedLoopCardElements();
+    if (cards.length === 0) {
+      return;
+    }
+
+    markFeaturedMotion();
+    clearFeaturedDockTimer();
+    keepFeaturedLooped();
+
+    const currentIndex = findClosestFeaturedCardIndex(track, cards);
+    const currentShipId = cards[currentIndex]?.getAttribute('data-ship-id');
+    const currentBaseIndex = currentShipId
+      ? featuredCards.findIndex(({ ship }) => ship.id === currentShipId)
+      : -1;
+    const normalizedCurrentIndex =
+      currentBaseIndex >= 0 ? currentBaseIndex : ((currentIndex % featuredCards.length) + featuredCards.length) % featuredCards.length;
+    const nextBaseIndex = (normalizedCurrentIndex + direction + featuredCards.length) % featuredCards.length;
+    const middleLoopIndex = Math.floor(FEATURED_REPEAT / 2);
+    const targetLoopCardIndex = middleLoopIndex * featuredCards.length + nextBaseIndex;
+    const targetCard = cards[targetLoopCardIndex] ?? cards[currentIndex];
+    const targetScrollLeft = getFeaturedCardCenterScroll(track, targetCard);
+    const distance = targetScrollLeft - track.scrollLeft;
+    if (Math.abs(distance) < 0.5) {
+      return;
+    }
+
     const boost = getFeaturedInputBoost();
-    const shiftWithBoost = shift * Math.min(1.75, 1 + (boost - 1) * 0.55);
-    const glideDuration = FEATURED_GLIDE_MAX_MS - Math.min(180, (boost - 1) * 92);
-    glideFeaturedBy(direction * shiftWithBoost, glideDuration);
-    const impulseBase = 1.1 + shift / 600;
-    const impulse = -direction * Math.min(5.4, impulseBase * boost * 1.25);
-    applyFeaturedInertia(impulse, 'add');
+    const glideDistance = distance * 0.76;
+    const glideDuration = Math.max(
+      FEATURED_GLIDE_MIN_MS + 56,
+      Math.min(FEATURED_GLIDE_MAX_MS, 180 + Math.abs(distance) * 0.12 - Math.min(80, (boost - 1) * 24)),
+    );
+    igniteFeaturedArrowPlasma(direction);
+    glideFeaturedBy(glideDistance, glideDuration, { keepLooping: true });
+
+    const residualDistance = distance - glideDistance;
+    const impulseDirection = residualDistance !== 0 ? -Math.sign(residualDistance) : -Math.sign(distance);
+    const impulseMagnitude = Math.min(6.1, 1.45 + Math.abs(residualDistance) / 118 + Math.min(1.1, (boost - 1) * 0.72));
+    applyFeaturedInertia(impulseDirection * impulseMagnitude, 'add');
+    scheduleFeaturedDockToCenter(FEATURED_DOCK_IDLE_MS + 50);
   };
 
   const onFeaturedWheel = (event: WheelEvent<HTMLDivElement>) => {
@@ -813,6 +1069,8 @@ export default function App() {
     if (!track) {
       return;
     }
+    markFeaturedMotion();
+    clearFeaturedDockTimer();
     event.preventDefault();
     const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
     const modeMultiplier = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1;
@@ -826,7 +1084,9 @@ export default function App() {
   };
 
   const onFeaturedScroll = () => {
+    markFeaturedMotion();
     keepFeaturedLooped();
+    scheduleFeaturedDockToCenter();
   };
 
   useEffect(() => {
@@ -837,6 +1097,8 @@ export default function App() {
         sectionSnapUnlockTimerRef.current = null;
       }
       clearManufacturerPreviewTimers();
+      clearFeaturedDockTimer();
+      clearFeaturedArrowPlasmaTimer();
       if (noticeTimeoutRef.current !== null) {
         clearTimeout(noticeTimeoutRef.current);
       }
@@ -883,9 +1145,44 @@ export default function App() {
         return;
       }
       const direction: 1 | -1 = delta > 0 ? 1 : -1;
+      const headerOffset = NAV_SCROLL_OFFSET;
+      const engageSectionSnap = (targetY: number, duration = 260) => {
+        event.preventDefault();
+        sectionSnapLockRef.current = true;
+        sectionSnapLastDirectionRef.current = direction;
+        sectionSnapLastTimeRef.current = performance.now();
+        smoothScrollToY(Math.max(0, targetY), duration);
+
+        if (sectionSnapUnlockTimerRef.current !== null) {
+          clearTimeout(sectionSnapUnlockTimerRef.current);
+        }
+        sectionSnapUnlockTimerRef.current = window.setTimeout(() => {
+          sectionSnapLockRef.current = false;
+          sectionSnapUnlockTimerRef.current = null;
+        }, 380);
+      };
 
       if (target.closest('.featured-loop-track, .section-orbit')) {
         return;
+      }
+
+      if (direction < 0) {
+        const aboutSection = document.getElementById('about');
+        if (aboutSection) {
+          const aboutTop = Math.round(aboutSection.getBoundingClientRect().top + window.scrollY) - headerOffset;
+          const manufacturersSection = document.getElementById('manufacturers');
+          const manufacturersTop = manufacturersSection
+            ? Math.round(manufacturersSection.getBoundingClientRect().top + window.scrollY) - headerOffset
+            : Number.POSITIVE_INFINITY;
+          const inAboutZone =
+            Boolean(target.closest('#about, #manufacturers')) ||
+            (window.scrollY >= aboutTop - 10 && window.scrollY <= manufacturersTop + 10);
+          const aboutTopThreshold = 26;
+          if (inAboutZone && window.scrollY > aboutTop + aboutTopThreshold) {
+            engageSectionSnap(aboutTop, 240);
+            return;
+          }
+        }
       }
 
       const inCatalog = target.closest('#catalog');
@@ -893,8 +1190,8 @@ export default function App() {
         const catalogSection = document.getElementById('catalog');
         const featuredSection = document.getElementById('featured');
         if (catalogSection && featuredSection) {
-          const catalogTop = catalogSection.getBoundingClientRect().top + window.scrollY - NAV_SCROLL_OFFSET;
-          const featuredBottom = featuredSection.getBoundingClientRect().bottom + window.scrollY - NAV_SCROLL_OFFSET;
+          const catalogTop = catalogSection.getBoundingClientRect().top + window.scrollY - headerOffset;
+          const featuredBottom = featuredSection.getBoundingClientRect().bottom + window.scrollY - headerOffset;
           const nearCatalogTop = window.scrollY <= catalogTop + 14;
           const nearFeaturedLine = Math.abs(window.scrollY - featuredBottom) <= 22;
           if (!(direction < 0 && (nearCatalogTop || nearFeaturedLine))) {
@@ -939,7 +1236,6 @@ export default function App() {
         return;
       }
 
-      const headerOffset = NAV_SCROLL_OFFSET;
       const probeY = window.scrollY + headerOffset;
       let currentIndex = 0;
       for (let index = 0; index < sectionTops.length; index += 1) {
@@ -974,19 +1270,7 @@ export default function App() {
         return;
       }
 
-      event.preventDefault();
-      sectionSnapLockRef.current = true;
-      sectionSnapLastDirectionRef.current = direction;
-      sectionSnapLastTimeRef.current = performance.now();
-      smoothScrollToY(Math.max(0, sectionTops[nextIndex] - headerOffset), 260);
-
-      if (sectionSnapUnlockTimerRef.current !== null) {
-        clearTimeout(sectionSnapUnlockTimerRef.current);
-      }
-      sectionSnapUnlockTimerRef.current = window.setTimeout(() => {
-        sectionSnapLockRef.current = false;
-        sectionSnapUnlockTimerRef.current = null;
-      }, 380);
+      engageSectionSnap(sectionTops[nextIndex] - headerOffset, 260);
     };
 
     window.addEventListener('wheel', onWindowWheel, { passive: false });
@@ -1368,23 +1652,36 @@ export default function App() {
     [featuredCards],
   );
 
+  const featuredDefaultCenterIndex = useMemo(() => {
+    const matchingIndex = featuredCards.findIndex(({ ship }) => ship.id === FEATURED_DEFAULT_CENTER_SHIP_ID);
+    if (matchingIndex >= 0) {
+      return matchingIndex;
+    }
+    return Math.max(0, Math.floor((featuredCards.length - 1) / 2));
+  }, [featuredCards]);
+
   useEffect(() => {
-    const track = featuredTrackRef.current;
-    if (!track || featuredCards.length === 0) {
+    if (featuredCards.length === 0) {
       return;
     }
+
     const recenter = () => {
-      const segment = track.scrollWidth / FEATURED_REPEAT;
-      if (segment > 0) {
-        track.scrollLeft = segment * Math.floor(FEATURED_REPEAT / 2);
-      }
+      clearFeaturedDockTimer();
+      markFeaturedMotion();
+      const middleLoopIndex = Math.floor(FEATURED_REPEAT / 2);
+      const targetIndex = middleLoopIndex * featuredCards.length + featuredDefaultCenterIndex;
+      centerFeaturedCardByLoopIndex(targetIndex, { immediate: true });
     };
+
     recenter();
-    window.addEventListener('resize', recenter);
-    return () => {
-      window.removeEventListener('resize', recenter);
+    const onResize = () => {
+      window.requestAnimationFrame(recenter);
     };
-  }, [featuredCards.length]);
+    window.addEventListener('resize', onResize);
+    return () => {
+      window.removeEventListener('resize', onResize);
+    };
+  }, [featuredCards.length, featuredDefaultCenterIndex]);
 
   return (
     <div className="min-h-screen bg-transparent text-text-light">
@@ -1405,7 +1702,11 @@ export default function App() {
                 type="button"
                 aria-label="Предыдущие предложения"
                 onClick={() => scrollFeatured(-1)}
-                className="no-tilt absolute left-1 top-1/2 z-20 -translate-y-1/2 rounded-full border border-cyan-holo/40 bg-dark-navy/60 p-2.5 text-cyan-holo/90 backdrop-blur-md transition hover:border-amber-ui/80 hover:bg-dark-navy/70 hover:text-amber-ui hover:shadow-[0_0_20px_rgba(255,80,40,0.5)] sm:left-2"
+                className={`no-tilt absolute left-1 top-1/2 z-20 -translate-y-1/2 rounded-full border bg-dark-navy/60 p-2.5 text-cyan-holo/90 backdrop-blur-md transition sm:left-2 ${
+                  featuredArrowPulseDirection === -1
+                    ? 'border-amber-ui/80 text-amber-ui shadow-[0_0_28px_rgba(255,80,40,0.62),0_0_18px_rgba(0,238,255,0.36)]'
+                    : 'border-cyan-holo/40 hover:border-amber-ui/80 hover:bg-dark-navy/70 hover:text-amber-ui hover:shadow-[0_0_20px_rgba(255,80,40,0.5)]'
+                }`}
               >
                 <ChevronLeft size={18} />
               </button>
@@ -1413,7 +1714,11 @@ export default function App() {
                 type="button"
                 aria-label="Следующие предложения"
                 onClick={() => scrollFeatured(1)}
-                className="no-tilt absolute right-1 top-1/2 z-20 -translate-y-1/2 rounded-full border border-cyan-holo/40 bg-dark-navy/60 p-2.5 text-cyan-holo/90 backdrop-blur-md transition hover:border-amber-ui/80 hover:bg-dark-navy/70 hover:text-amber-ui hover:shadow-[0_0_20px_rgba(255,80,40,0.5)] sm:right-2"
+                className={`no-tilt absolute right-1 top-1/2 z-20 -translate-y-1/2 rounded-full border bg-dark-navy/60 p-2.5 text-cyan-holo/90 backdrop-blur-md transition sm:right-2 ${
+                  featuredArrowPulseDirection === 1
+                    ? 'border-amber-ui/80 text-amber-ui shadow-[0_0_28px_rgba(255,80,40,0.62),0_0_18px_rgba(0,238,255,0.36)]'
+                    : 'border-cyan-holo/40 hover:border-amber-ui/80 hover:bg-dark-navy/70 hover:text-amber-ui hover:shadow-[0_0_20px_rgba(255,80,40,0.5)]'
+                }`}
               >
                 <ChevronRight size={18} />
               </button>
@@ -1437,6 +1742,7 @@ export default function App() {
                     <article
                       key={key}
                       data-ship-id={ship.id}
+                      data-featured-loop-card="true"
                       className="panel-shell card-tilt-reactive min-w-[288px] cursor-pointer p-4 transition duration-300 sm:min-w-[330px]"
                       onMouseMove={onFeaturedCardMouseMove}
                       onMouseLeave={onFeaturedCardMouseLeave}

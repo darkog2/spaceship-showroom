@@ -1,10 +1,10 @@
-﻿export default function Footer() {
+export default function Footer() {
   const currentYear = 2146;
 
   return (
-    <footer className="mt-14 border-t border-cyan-holo/25 bg-panel-dark/60 backdrop-blur-xl">
-      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
+    <footer className="mt-10 border-t border-cyan-holo/25 bg-panel-dark/60 backdrop-blur-xl">
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-9 lg:px-8">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
           <div>
             <p className="font-orbitron text-2xl uppercase tracking-[0.1em] text-text-light">
               Void <span className="text-amber-ui">Hangar</span>
@@ -39,7 +39,7 @@
           </div>
         </div>
 
-        <div className="mt-8 flex flex-col gap-2 border-t border-cyan-holo/20 pt-6 font-rajdhani text-sm text-text-light/55 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-6 flex flex-col gap-1 border-t border-cyan-holo/20 pt-4 font-rajdhani text-sm text-text-light/55 sm:flex-row sm:items-center sm:justify-between">
           <p>Copyright {currentYear} Void Hangar. Все права защищены.</p>
           <p>Оптимизировано для настольных и мобильных панелей управления.</p>
         </div>

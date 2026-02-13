@@ -1,4 +1,4 @@
-﻿import { type ChangeEvent, type ReactNode, useEffect, useMemo, useState } from 'react';
+import { type ChangeEvent, type ReactNode, useEffect, useMemo, useState } from 'react';
 import { ChevronDown, Filter, RotateCcw, X } from 'lucide-react';
 import { Ship } from '../data/ships';
 
@@ -191,7 +191,7 @@ export default function ShipFilter({ ships, onFilter, variant = 'default' }: Shi
   const getOptionClass = (active: boolean, dense = false) => {
     const base = isSidebar
       ? `w-full rounded-lg border px-2 py-1.5 font-rajdhani text-[12px] font-semibold leading-[1.15] tracking-[0.01em] text-center transition-colors duration-200 ${
-          dense ? 'min-h-[34px]' : 'min-h-[38px]'
+          dense ? 'min-h-[30px]' : 'min-h-[34px]'
         } whitespace-normal break-words [word-break:break-word]`
       : 'rounded-md border px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.1em] transition-colors duration-200';
 
@@ -246,7 +246,7 @@ export default function ShipFilter({ ships, onFilter, variant = 'default' }: Shi
   );
 
   const renderSection = (key: SectionKey, title: string, content: ReactNode) => (
-    <div className="rounded-lg border border-text-light/10 bg-dark-navy/14 px-2.5 py-2">
+    <div className={`rounded-lg border border-text-light/10 bg-dark-navy/14 ${isSidebar ? 'px-2 py-1.5' : 'px-2.5 py-2'}`}>
       <button
         type="button"
         onClick={() => toggleSection(key)}
@@ -261,7 +261,9 @@ export default function ShipFilter({ ships, onFilter, variant = 'default' }: Shi
       </button>
       <div
         className={`grid overflow-hidden transition-all duration-300 ease-out ${
-          expandedSections[key] ? 'mt-3 grid-rows-[1fr] opacity-100' : 'mt-0 grid-rows-[0fr] opacity-0'
+          expandedSections[key]
+            ? `${isSidebar ? 'mt-2' : 'mt-3'} grid-rows-[1fr] opacity-100`
+            : 'mt-0 grid-rows-[0fr] opacity-0'
         }`}
       >
         <div className="overflow-hidden">{content}</div>
@@ -271,9 +273,9 @@ export default function ShipFilter({ ships, onFilter, variant = 'default' }: Shi
 
   return (
     <section
-      className={`panel-shell ship-filter-panel ${isSidebar ? 'ship-filter-panel--sidebar p-3' : 'ship-filter-panel--default mb-8 p-5 sm:p-6'}`}
+      className={`panel-shell ship-filter-panel ${isSidebar ? 'ship-filter-panel--sidebar p-2.5' : 'ship-filter-panel--default mb-8 p-5 sm:p-6'}`}
     >
-      <div className={`mb-4 flex flex-wrap items-center justify-between gap-3 ${isSidebar ? 'border-b border-text-light/10 pb-3' : ''}`}>
+      <div className={`flex flex-wrap items-center justify-between gap-2 ${isSidebar ? 'mb-3 border-b border-text-light/10 pb-2.5' : 'mb-4'}`}>
         <button
           type="button"
           onClick={toggleAllSections}
@@ -301,17 +303,17 @@ export default function ShipFilter({ ships, onFilter, variant = 'default' }: Shi
         </div>
       )}
 
-      {isSidebar && <div className="mb-4">{renderActiveFilters()}</div>}
+      {isSidebar && <div className="mb-3">{renderActiveFilters()}</div>}
 
-      <div className={isSidebar ? 'grid grid-cols-1 gap-3' : 'grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4'}>
+      <div className={isSidebar ? 'grid grid-cols-1 gap-2.5' : 'grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4'}>
         {renderSection(
           'price',
           'Цена',
-          <div className="space-y-4">
+          <div className={isSidebar ? 'space-y-3' : 'space-y-4'}>
             <p className="text-xs text-text-light/55">
               Фактический диапазон: {formatPriceK(minAvailablePrice)} - {formatPriceK(maxAvailablePrice)}
             </p>
-            <div className="grid grid-cols-2 gap-2">
+            <div className={isSidebar ? 'grid grid-cols-2 gap-1.5' : 'grid grid-cols-2 gap-2'}>
               <label className="filter-price-field">
                 <span className="filter-price-caption">От</span>
                 <input
@@ -386,7 +388,7 @@ export default function ShipFilter({ ships, onFilter, variant = 'default' }: Shi
         {renderSection(
           'crew',
           'Экипаж',
-          <div className="space-y-5">
+          <div className={isSidebar ? 'space-y-3' : 'space-y-5'}>
             <div className="range-slider-wrapper">
               <div className="range-track" />
               <div className="range-progress" style={{ width: `${crewPercent}%` }} />
