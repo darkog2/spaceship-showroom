@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowDownRight, Sparkles } from 'lucide-react';
 import { Ship, ships } from '../data/ships';
 import { useTiltEffect } from '../hooks/useTiltEffect';
@@ -30,15 +30,118 @@ const ambienceVideos = [
   `${base}ships/videos/upscale4x/hero-04.mp4`,
 ];
 
+type VideoLayer = 0 | 1;
+
 export default function Hero({ onOpenFeaturedShip }: HeroProps) {
-  const [activeFrame, setActiveFrame] = useState(0);
+  const [activeLayer, setActiveLayer] = useState<VideoLayer>(0);
+  const [layerVideoIndex, setLayerVideoIndex] = useState<[number, number]>([
+    0,
+    ambienceVideos.length > 1 ? 1 : 0,
+  ]);
+  const [nextReady, setNextReady] = useState(false);
+  const videoRefs = useRef<[HTMLVideoElement | null, HTMLVideoElement | null]>([null, null]);
+  const pendingSwitchRef = useRef(false);
   const { onMouseMove: onHeroTiltMove, onMouseLeave: onHeroTiltLeave } = useTiltEffect({
     intensity: 1.18,
     perspective: 1220,
   });
-  const goToNextAmbienceVideo = () => {
-    setActiveFrame((prev) => (prev + 1) % ambienceVideos.length);
+
+  const inactiveLayer: VideoLayer = activeLayer === 0 ? 1 : 0;
+  const activeVideoIndex = layerVideoIndex[activeLayer];
+  const inactiveVideoIndex = layerVideoIndex[inactiveLayer];
+
+  const switchToPreparedVideo = () => {
+    if (ambienceVideos.length <= 1) {
+      return;
+    }
+
+    const currentActiveLayer = activeLayer;
+    const newActiveLayer: VideoLayer = currentActiveLayer === 0 ? 1 : 0;
+
+    setLayerVideoIndex((prev) => {
+      const upcomingIndex = (prev[newActiveLayer] + 1) % ambienceVideos.length;
+      return currentActiveLayer === 0 ? [upcomingIndex, prev[1]] : [prev[0], upcomingIndex];
+    });
+    setActiveLayer(newActiveLayer);
+    setNextReady(false);
+    pendingSwitchRef.current = false;
   };
+
+  const handleActiveVideoEnded = () => {
+    if (ambienceVideos.length <= 1) {
+      const onlyVideo = videoRefs.current[activeLayer];
+      if (!onlyVideo) {
+        return;
+      }
+      onlyVideo.currentTime = 0;
+      void onlyVideo.play().catch(() => undefined);
+      return;
+    }
+
+    if (nextReady) {
+      switchToPreparedVideo();
+      return;
+    }
+
+    pendingSwitchRef.current = true;
+  };
+
+  const handleInactiveVideoReady = () => {
+    setNextReady(true);
+    if (pendingSwitchRef.current) {
+      switchToPreparedVideo();
+    }
+  };
+
+  const handleActiveVideoError = () => {
+    if (ambienceVideos.length <= 1) {
+      return;
+    }
+
+    if (nextReady) {
+      switchToPreparedVideo();
+      return;
+    }
+
+    pendingSwitchRef.current = true;
+  };
+
+  const handleInactiveVideoError = () => {
+    if (ambienceVideos.length <= 2) {
+      return;
+    }
+
+    setLayerVideoIndex((prev) => {
+      const failedVideoIndex = prev[inactiveLayer];
+      const replacementIndex = (failedVideoIndex + 1) % ambienceVideos.length;
+      return inactiveLayer === 0 ? [replacementIndex, prev[1]] : [prev[0], replacementIndex];
+    });
+    setNextReady(false);
+  };
+
+  useEffect(() => {
+    const activeVideo = videoRefs.current[activeLayer];
+    if (!activeVideo) {
+      return;
+    }
+    activeVideo.currentTime = 0;
+    void activeVideo.play().catch(() => undefined);
+  }, [activeLayer, activeVideoIndex]);
+
+  useEffect(() => {
+    if (ambienceVideos.length <= 1) {
+      setNextReady(true);
+      return;
+    }
+
+    const nextVideo = videoRefs.current[inactiveLayer];
+    if (nextVideo && nextVideo.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
+      setNextReady(true);
+      return;
+    }
+
+    setNextReady(false);
+  }, [inactiveLayer, inactiveVideoIndex]);
 
   const jumpTo = (id: string) => {
     const section = document.getElementById(id);
@@ -50,17 +153,29 @@ export default function Hero({ onOpenFeaturedShip }: HeroProps) {
   return (
     <section id="home" className="relative overflow-hidden pb-16 pt-20 md:pt-28">
       <div className="pointer-events-none absolute inset-0 z-0">
-        <video
-          key={ambienceVideos[activeFrame]}
-          className="absolute inset-0 h-full w-full object-cover opacity-38"
-          src={ambienceVideos[activeFrame]}
-          autoPlay
-          muted
-          playsInline
-          preload="metadata"
-          onEnded={goToNextAmbienceVideo}
-          onError={goToNextAmbienceVideo}
-        />
+        {([0, 1] as VideoLayer[]).map((layer) => {
+          const isActive = layer === activeLayer;
+          const videoIndex = layerVideoIndex[layer];
+          return (
+            <video
+              key={`hero-ambience-${layer}-${videoIndex}`}
+              ref={(element) => {
+                videoRefs.current[layer] = element;
+              }}
+              className="absolute inset-0 h-full w-full object-cover transition-opacity duration-500"
+              style={{ opacity: isActive ? 0.38 : 0 }}
+              src={ambienceVideos[videoIndex]}
+              autoPlay={isActive}
+              muted
+              playsInline
+              preload="auto"
+              onEnded={isActive ? handleActiveVideoEnded : undefined}
+              onLoadedData={isActive ? undefined : handleInactiveVideoReady}
+              onCanPlay={isActive ? undefined : handleInactiveVideoReady}
+              onError={isActive ? handleActiveVideoError : handleInactiveVideoError}
+            />
+          );
+        })}
         <div className="absolute inset-0 bg-gradient-to-b from-dark-navy/24 via-dark-navy/68 to-dark-navy/50" />
         <div className="absolute inset-y-0 left-0 w-[60%] bg-gradient-to-r from-dark-navy/78 via-dark-navy/56 to-transparent" />
         <div className="absolute inset-y-0 left-0 w-[44%] bg-[radial-gradient(circle_at_18%_36%,rgba(8,6,18,0.72),transparent_72%)]" />
