@@ -179,6 +179,9 @@ const FEATURED_DOCK_MIN_DISTANCE = 0.6;
 const FEATURED_DOCK_VELOCITY_EPS = 0.04;
 const FEATURED_DOCK_FINAL_CORRECTION_PX = 1.2;
 const FEATURED_DIRECTION_MIN_DELTA = 0.35;
+const FEATURED_DOCK_DIRECTION_LOCK_MS = 960;
+const FEATURED_HOLD_START_DELAY_MS = 130;
+const FEATURED_HOLD_MIN_INTERVAL_MS = 24;
 const FEATURED_ARROW_PLASMA_POWER = 1.18;
 const FEATURED_ARROW_PLASMA_MS = 340;
 const NAV_SCROLL_OFFSET = 72;
@@ -263,6 +266,24 @@ export default function App() {
   const featuredLastMotionAtRef = useRef(0);
   const featuredLastScrollLeftRef = useRef<number | null>(null);
   const featuredTravelDirectionRef = useRef<1 | -1 | 0>(0);
+  const featuredDockDirectionLockRef = useRef<1 | -1 | 0>(0);
+  const featuredDockDirectionLockUntilRef = useRef(0);
+  const featuredArrowHoldRef = useRef<{
+    active: boolean;
+    direction: 1 | -1 | 0;
+    startedAt: number;
+    lastTickAt: number;
+    pointerId: number | null;
+    frame: number | null;
+  }>({
+    active: false,
+    direction: 0,
+    startedAt: 0,
+    lastTickAt: 0,
+    pointerId: null,
+    frame: null,
+  });
+  const featuredArrowSuppressClickRef = useRef(false);
   const featuredVelocityRef = useRef(0);
   const featuredLastFrameRef = useRef(0);
   const featuredInputRhythmRef = useRef({ lastInput: 0, streak: 0 });
@@ -585,6 +606,26 @@ export default function App() {
     }
   };
 
+  const setFeaturedPlasmaOverheat = (power: number) => {
+    const track = featuredTrackRef.current;
+    if (!track) {
+      return;
+    }
+    const normalized = Math.max(0, Math.min(1.35, power));
+    track.style.setProperty('--plasma-overheat', normalized.toFixed(3));
+    track.classList.toggle('plasma-overheat', normalized > 0.08);
+  };
+
+  const clearFeaturedDockDirectionLock = () => {
+    featuredDockDirectionLockRef.current = 0;
+    featuredDockDirectionLockUntilRef.current = 0;
+  };
+
+  const lockFeaturedDockDirection = (direction: 1 | -1, durationMs = FEATURED_DOCK_DIRECTION_LOCK_MS) => {
+    featuredDockDirectionLockRef.current = direction;
+    featuredDockDirectionLockUntilRef.current = performance.now() + durationMs;
+  };
+
   const markFeaturedMotion = () => {
     featuredLastMotionAtRef.current = performance.now();
   };
@@ -638,6 +679,20 @@ export default function App() {
         setFeaturedPlasma(0);
       }
     }, FEATURED_ARROW_PLASMA_MS);
+  };
+
+  const stopFeaturedArrowHold = () => {
+    const hold = featuredArrowHoldRef.current;
+    if (hold.frame !== null) {
+      cancelAnimationFrame(hold.frame);
+      hold.frame = null;
+    }
+    hold.active = false;
+    hold.direction = 0;
+    hold.pointerId = null;
+    hold.startedAt = 0;
+    hold.lastTickAt = 0;
+    setFeaturedPlasmaOverheat(0);
   };
 
   const applyFeaturedInertia = (impulse: number, mode: 'add' | 'replace' = 'add') => {
@@ -932,7 +987,13 @@ export default function App() {
       if (cards.length === 0) {
         return;
       }
-      const travelDirection = featuredTravelDirectionRef.current;
+      const now = performance.now();
+      const lockDirection = featuredDockDirectionLockRef.current;
+      const lockActive = lockDirection !== 0 && now <= featuredDockDirectionLockUntilRef.current;
+      if (!lockActive && lockDirection !== 0) {
+        clearFeaturedDockDirectionLock();
+      }
+      const travelDirection = lockActive ? lockDirection : featuredTravelDirectionRef.current;
       const targetLoopCardIndex = findDirectionalFeaturedCardIndex(track, cards, travelDirection);
       const targetCard = cards[targetLoopCardIndex] ?? cards[findClosestFeaturedCardIndex(track, cards)];
       const targetScrollLeft = getFeaturedCardCenterScroll(track, targetCard);
@@ -965,11 +1026,14 @@ export default function App() {
     }
     markFeaturedMotion();
     clearFeaturedDockTimer();
+    stopFeaturedArrowHold();
+    clearFeaturedDockDirectionLock();
     clearFeaturedArrowPlasmaTimer();
     setFeaturedArrowPulseDirection(0);
     stopFeaturedGlide();
     stopFeaturedInertia();
     setFeaturedPlasma(0);
+    setFeaturedPlasmaOverheat(0);
     featuredLastScrollLeftRef.current = track.scrollLeft;
     featuredPointerIdRef.current = event.pointerId;
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -1065,7 +1129,7 @@ export default function App() {
     scheduleFeaturedDockToCenter(FEATURED_DOCK_IDLE_MS + 40);
   };
 
-  const scrollFeatured = (direction: 1 | -1) => {
+  const scrollFeatured = (direction: 1 | -1, options?: { holdBoost?: number; fromHold?: boolean }) => {
     const track = featuredTrackRef.current;
     if (!track || featuredCards.length === 0) {
       return;
@@ -1078,6 +1142,7 @@ export default function App() {
 
     markFeaturedMotion();
     clearFeaturedDockTimer();
+    lockFeaturedDockDirection(direction, options?.fromHold ? FEATURED_DOCK_DIRECTION_LOCK_MS + 460 : FEATURED_DOCK_DIRECTION_LOCK_MS);
     keepFeaturedLooped();
 
     const currentIndex = findClosestFeaturedCardIndex(track, cards);
@@ -1098,20 +1163,105 @@ export default function App() {
     }
     noteFeaturedTravelByScrollDelta(distance);
 
-    const boost = getFeaturedInputBoost();
-    const glideDistance = distance * 0.76;
+    const inputBoost = getFeaturedInputBoost();
+    const holdBoost = options?.holdBoost ?? 1;
+    const boost = Math.max(inputBoost, holdBoost);
+    const glideDistance = distance * (options?.fromHold ? 0.82 : 0.76);
     const glideDuration = Math.max(
       FEATURED_GLIDE_MIN_MS + 56,
-      Math.min(FEATURED_GLIDE_MAX_MS, 180 + Math.abs(distance) * 0.12 - Math.min(80, (boost - 1) * 24)),
+      Math.min(FEATURED_GLIDE_MAX_MS, 184 + Math.abs(distance) * 0.1 - Math.min(94, (boost - 1) * 32)),
     );
     igniteFeaturedArrowPlasma(direction);
     glideFeaturedBy(glideDistance, glideDuration, { keepLooping: true });
 
     const residualDistance = distance - glideDistance;
     const impulseDirection = residualDistance !== 0 ? -Math.sign(residualDistance) : -Math.sign(distance);
-    const impulseMagnitude = Math.min(6.1, 1.45 + Math.abs(residualDistance) / 118 + Math.min(1.1, (boost - 1) * 0.72));
+    const holdImpulseBonus = options?.fromHold ? 0.4 : 0;
+    const impulseMagnitude = Math.min(
+      6.3,
+      1.45 + Math.abs(residualDistance) / 118 + Math.min(1.25, (boost - 1) * 0.74) + holdImpulseBonus,
+    );
     applyFeaturedInertia(impulseDirection * impulseMagnitude, 'add');
-    scheduleFeaturedDockToCenter(FEATURED_DOCK_IDLE_MS + 50);
+    scheduleFeaturedDockToCenter(options?.fromHold ? FEATURED_DOCK_IDLE_MS + 90 : FEATURED_DOCK_IDLE_MS + 50);
+  };
+
+  const tickFeaturedArrowHold = (timestamp: number) => {
+    const hold = featuredArrowHoldRef.current;
+    if (!hold.active || hold.direction === 0) {
+      return;
+    }
+
+    const elapsed = timestamp - hold.startedAt;
+    const interval = Math.max(FEATURED_HOLD_MIN_INTERVAL_MS, FEATURED_HOLD_START_DELAY_MS - elapsed * 0.12);
+    if (timestamp - hold.lastTickAt >= interval) {
+      hold.lastTickAt = timestamp;
+      const holdBoost = Math.min(4.2, 1.24 + elapsed / 210);
+      const repeats = elapsed > 1000 ? 2 : 1;
+      for (let index = 0; index < repeats; index += 1) {
+        scrollFeatured(hold.direction, { fromHold: true, holdBoost });
+      }
+    }
+
+    const overheat = Math.max(0, Math.min(1.35, (elapsed - 220) / 420));
+    setFeaturedPlasmaOverheat(overheat);
+    if (overheat > 0) {
+      setFeaturedPlasma(Math.min(1.6, FEATURED_ARROW_PLASMA_POWER + overheat * 0.34));
+    }
+    hold.frame = requestAnimationFrame(tickFeaturedArrowHold);
+  };
+
+  const startFeaturedArrowHold = (direction: 1 | -1, pointerId: number | null) => {
+    stopFeaturedArrowHold();
+    featuredArrowSuppressClickRef.current = pointerId !== null;
+    markFeaturedMotion();
+    clearFeaturedDockTimer();
+    lockFeaturedDockDirection(direction, FEATURED_DOCK_DIRECTION_LOCK_MS + 1300);
+    setFeaturedArrowPulseDirection(direction);
+    setFeaturedPlasmaOverheat(0);
+
+    const now = performance.now();
+    featuredArrowHoldRef.current = {
+      active: true,
+      direction,
+      startedAt: now,
+      lastTickAt: now,
+      pointerId,
+      frame: null,
+    };
+
+    scrollFeatured(direction, { fromHold: true, holdBoost: 1.2 });
+    featuredArrowHoldRef.current.frame = requestAnimationFrame(tickFeaturedArrowHold);
+  };
+
+  const onFeaturedArrowClick = (direction: 1 | -1) => {
+    if (featuredArrowSuppressClickRef.current) {
+      featuredArrowSuppressClickRef.current = false;
+      return;
+    }
+    scrollFeatured(direction);
+  };
+
+  const onFeaturedArrowPointerDown = (event: PointerEvent<HTMLButtonElement>, direction: 1 | -1) => {
+    if (event.button !== 0) {
+      return;
+    }
+    event.preventDefault();
+    startFeaturedArrowHold(direction, event.pointerId);
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const onFeaturedArrowPointerUp = (event: PointerEvent<HTMLButtonElement>) => {
+    const holdPointerId = featuredArrowHoldRef.current.pointerId;
+    if (holdPointerId !== null && holdPointerId !== event.pointerId) {
+      return;
+    }
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    stopFeaturedArrowHold();
+    window.setTimeout(() => {
+      featuredArrowSuppressClickRef.current = false;
+    }, 0);
   };
 
   const onFeaturedWheel = (event: WheelEvent<HTMLDivElement>) => {
@@ -1119,6 +1269,9 @@ export default function App() {
     if (!track) {
       return;
     }
+    stopFeaturedArrowHold();
+    clearFeaturedDockDirectionLock();
+    setFeaturedPlasmaOverheat(0);
     markFeaturedMotion();
     clearFeaturedDockTimer();
     event.preventDefault();
@@ -1155,6 +1308,8 @@ export default function App() {
 
   useEffect(() => {
     return () => {
+      stopFeaturedArrowHold();
+      clearFeaturedDockDirectionLock();
       stopFeaturedInertia();
       if (sectionSnapUnlockTimerRef.current !== null) {
         clearTimeout(sectionSnapUnlockTimerRef.current);
@@ -1163,6 +1318,7 @@ export default function App() {
       clearManufacturerPreviewTimers();
       clearFeaturedDockTimer();
       clearFeaturedArrowPlasmaTimer();
+      setFeaturedPlasmaOverheat(0);
       if (noticeTimeoutRef.current !== null) {
         clearTimeout(noticeTimeoutRef.current);
       }
@@ -1765,7 +1921,11 @@ export default function App() {
               <button
                 type="button"
                 aria-label="Предыдущие предложения"
-                onClick={() => scrollFeatured(-1)}
+                onClick={() => onFeaturedArrowClick(-1)}
+                onPointerDown={(event) => onFeaturedArrowPointerDown(event, -1)}
+                onPointerUp={onFeaturedArrowPointerUp}
+                onPointerCancel={onFeaturedArrowPointerUp}
+                onLostPointerCapture={onFeaturedArrowPointerUp}
                 className={`no-tilt absolute left-1 top-1/2 z-20 -translate-y-1/2 rounded-full border bg-dark-navy/60 p-2.5 text-cyan-holo/90 backdrop-blur-md transition sm:left-2 ${
                   featuredArrowPulseDirection === -1
                     ? 'border-amber-ui/80 text-amber-ui shadow-[0_0_28px_rgba(255,80,40,0.62),0_0_18px_rgba(0,238,255,0.36)]'
@@ -1777,7 +1937,11 @@ export default function App() {
               <button
                 type="button"
                 aria-label="Следующие предложения"
-                onClick={() => scrollFeatured(1)}
+                onClick={() => onFeaturedArrowClick(1)}
+                onPointerDown={(event) => onFeaturedArrowPointerDown(event, 1)}
+                onPointerUp={onFeaturedArrowPointerUp}
+                onPointerCancel={onFeaturedArrowPointerUp}
+                onLostPointerCapture={onFeaturedArrowPointerUp}
                 className={`no-tilt absolute right-1 top-1/2 z-20 -translate-y-1/2 rounded-full border bg-dark-navy/60 p-2.5 text-cyan-holo/90 backdrop-blur-md transition sm:right-2 ${
                   featuredArrowPulseDirection === 1
                     ? 'border-amber-ui/80 text-amber-ui shadow-[0_0_28px_rgba(255,80,40,0.62),0_0_18px_rgba(0,238,255,0.36)]'
