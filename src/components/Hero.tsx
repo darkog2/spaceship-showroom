@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ArrowDownRight, Sparkles } from 'lucide-react';
 import { Ship, ships } from '../data/ships';
 import { useTiltEffect } from '../hooks/useTiltEffect';
@@ -22,11 +22,12 @@ const classLabels: Record<Ship['class'], string> = {
   'Quad Shuttle': 'Квадро-шаттл',
 };
 
-const ambienceFrames = [
-  '/ships/orion-x9.png',
-  '/ships/nox-3-spectre.png',
-  '/ships/nyx-veil-s1.png',
-  '/ships/solstice-r9.png',
+const base = import.meta.env.BASE_URL;
+const ambienceVideos = [
+  `${base}ships/videos/upscale4x/hero-01.mp4`,
+  `${base}ships/videos/upscale4x/hero-02.mp4`,
+  `${base}ships/videos/upscale4x/hero-03.mp4`,
+  `${base}ships/videos/upscale4x/hero-04.mp4`,
 ];
 
 export default function Hero({ onOpenFeaturedShip }: HeroProps) {
@@ -35,13 +36,9 @@ export default function Hero({ onOpenFeaturedShip }: HeroProps) {
     intensity: 1.18,
     perspective: 1220,
   });
-
-  useEffect(() => {
-    const timerId = window.setInterval(() => {
-      setActiveFrame((prev) => (prev + 1) % ambienceFrames.length);
-    }, 8000);
-    return () => window.clearInterval(timerId);
-  }, []);
+  const goToNextAmbienceVideo = () => {
+    setActiveFrame((prev) => (prev + 1) % ambienceVideos.length);
+  };
 
   const jumpTo = (id: string) => {
     const section = document.getElementById(id);
@@ -53,13 +50,16 @@ export default function Hero({ onOpenFeaturedShip }: HeroProps) {
   return (
     <section id="home" className="relative overflow-hidden pb-16 pt-20 md:pt-28">
       <div className="pointer-events-none absolute inset-0 z-0">
-        <div
-          className="absolute inset-0 opacity-38"
-          style={{
-            backgroundImage: `url('${ambienceFrames[activeFrame]}')`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-          }}
+        <video
+          key={ambienceVideos[activeFrame]}
+          className="absolute inset-0 h-full w-full object-cover opacity-38"
+          src={ambienceVideos[activeFrame]}
+          autoPlay
+          muted
+          playsInline
+          preload="metadata"
+          onEnded={goToNextAmbienceVideo}
+          onError={goToNextAmbienceVideo}
         />
         <div className="absolute inset-0 bg-gradient-to-b from-dark-navy/24 via-dark-navy/68 to-dark-navy/50" />
         <div className="absolute inset-y-0 left-0 w-[60%] bg-gradient-to-r from-dark-navy/78 via-dark-navy/56 to-transparent" />
@@ -177,4 +177,3 @@ export default function Hero({ onOpenFeaturedShip }: HeroProps) {
     </section>
   );
 }
-
