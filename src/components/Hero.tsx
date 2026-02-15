@@ -24,10 +24,10 @@ const classLabels: Record<Ship['class'], string> = {
 
 const base = import.meta.env.BASE_URL;
 const ambienceVideos = [
-  `${base}ships/videos/upscale4x/hero-01.mp4`,
-  `${base}ships/videos/upscale4x/hero-02.mp4`,
-  `${base}ships/videos/upscale4x/hero-03.mp4`,
-  `${base}ships/videos/upscale4x/hero-04.mp4`,
+  `${base}ships/videos/upscale4x/compressed/hero-01.mp4`,
+  `${base}ships/videos/upscale4x/compressed/hero-02.mp4`,
+  `${base}ships/videos/upscale4x/compressed/hero-03.mp4`,
+  `${base}ships/videos/upscale4x/compressed/hero-04.mp4`,
 ];
 
 type VideoLayer = 0 | 1;
