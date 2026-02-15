@@ -182,7 +182,7 @@ export default function Hero({ onOpenFeaturedShip }: HeroProps) {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_14%,rgba(169,125,255,0.26),transparent_44%),radial-gradient(circle_at_82%_10%,rgba(255,143,31,0.18),transparent_38%)]" />
       </div>
 
-      <div className="relative z-10 mx-auto grid max-w-7xl grid-cols-1 gap-8 px-4 sm:px-6 lg:grid-cols-12 lg:items-end lg:gap-8 lg:px-8 xl:-translate-x-8 xl:gap-10 2xl:-translate-x-12">
+      <div className="relative z-10 mx-auto grid max-w-7xl grid-cols-1 gap-8 px-4 sm:px-6 lg:grid-cols-12 lg:items-end lg:gap-8 xl:gap-10 lg:px-8">
         <div className="hero-copy-shell lg:col-span-6 p-3 sm:p-4 lg:p-4">
 
           <h1 className="font-orbitron text-[clamp(2.35rem,4vw,4.65rem)] font-bold leading-[1] tracking-[0.03em] text-text-light drop-shadow-[0_12px_24px_rgba(5,3,12,0.8)]">
