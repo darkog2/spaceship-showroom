@@ -178,7 +178,7 @@ export default function ShipCard({
                 }}
                 className="ship-card-maker-pill mt-2"
               >
-                РџСЂРѕРёР·РІРѕРґРёС‚РµР»СЊ: {manufacturer.name}
+                {`\u041f\u0420\u041e\u0418\u0417\u0412\u041e\u0414\u0418\u0422\u0415\u041b\u042c: ${manufacturer.name}`}
               </button>
             )}
             <div className="ship-copy-box mt-3 w-full max-w-[300px] px-3 py-2.5 backdrop-blur-[2px]">
