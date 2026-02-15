@@ -7,6 +7,7 @@ import SectionOrbitNav from './components/SectionOrbitNav';
 import ShipCard from './components/ShipCard';
 import ShipDetail from './components/ShipDetail';
 import ShipFilter from './components/ShipFilter';
+import SkeletonImage from './components/SkeletonImage';
 import { Manufacturer, Ship, manufacturers, ships } from './data/ships';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -1987,7 +1988,7 @@ export default function App() {
                       onMouseLeave={onFeaturedCardMouseLeave}
                     >
                       <div className="zoomable relative h-44 overflow-hidden rounded-xl">
-                        <img src={featuredImage} alt={ship.name} className="h-full w-full object-cover" draggable={false} />
+                        <SkeletonImage src={featuredImage} alt={ship.name} className="h-full w-full object-cover" draggable={false} loading="lazy" />
                       </div>
                       <div className="mt-4">
                         <div className="flex items-center justify-between gap-3">
@@ -2411,7 +2412,7 @@ export default function App() {
           onClick={() => openShipFromManufacturerPreview(manufacturerChipPreview.ship)}
         >
           <div className="manufacturer-chip-preview-media">
-            <img
+            <SkeletonImage
               src={manufacturerChipPreview.ship.images[0]}
               alt={manufacturerChipPreview.ship.name}
               className="h-full w-full object-cover"
@@ -2631,10 +2632,11 @@ export default function App() {
                 {compareList.map((item) => (
                   <article key={item.id} className="panel-shell p-4">
                     <div className="mb-3 overflow-hidden rounded-lg border border-cyan-holo/25 bg-dark-navy/45">
-                      <img
+                      <SkeletonImage
                         src={item.images[0]}
                         alt={item.name}
                         className="h-24 w-full object-cover"
+                        wrapperClassName="h-24 w-full"
                         loading="lazy"
                         draggable={false}
                       />

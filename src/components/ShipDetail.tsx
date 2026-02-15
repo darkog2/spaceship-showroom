@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, Gauge, Shield, Users, X } from 'lucide-react';
 import { Manufacturer, Ship } from '../data/ships';
+import SkeletonImage from './SkeletonImage';
 
 interface ShipDetailProps {
   ship: Ship;
@@ -203,7 +204,7 @@ export default function ShipDetail({
                 onMouseEnter={(event) => event.currentTarget.classList.add('is-active')}
                 onMouseLeave={(event) => event.currentTarget.classList.remove('is-active')}
               >
-                <img src={activeImageSrc} alt={ship.name} className="h-full w-full object-cover" draggable={false} />
+                <SkeletonImage src={activeImageSrc} alt={ship.name} className="h-full w-full object-cover" draggable={false} />
                 <div className="absolute inset-0 bg-gradient-to-t from-dark-navy via-dark-navy/10 to-transparent" />
               </div>
             </div>
@@ -229,7 +230,14 @@ export default function ShipDetail({
                   type="button"
                   aria-label={`Открыть изображение ${index + 1}`}
                 >
-                  <img src={image} alt={`${ship.name} ракурс ${index + 1}`} className="h-20 w-full object-cover sm:h-24" draggable={false} />
+                  <SkeletonImage
+                    src={image}
+                    alt={`${ship.name} ракурс ${index + 1}`}
+                    className="h-20 w-full object-cover sm:h-24"
+                    wrapperClassName="h-20 w-full sm:h-24"
+                    draggable={false}
+                    loading="lazy"
+                  />
                 </button>
               ))}
             </div>

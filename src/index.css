@@ -160,6 +160,53 @@ main {
   }
 }
 
+@keyframes imageSkeletonPulse {
+  0%,
+  100% {
+    opacity: 0.64;
+  }
+  50% {
+    opacity: 0.88;
+  }
+}
+
+@keyframes imageSkeletonScan {
+  0% {
+    transform: translateX(-130%);
+  }
+  100% {
+    transform: translateX(130%);
+  }
+}
+
+.image-skeleton {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background:
+    linear-gradient(145deg, rgba(7, 10, 24, 0.88), rgba(11, 14, 32, 0.84)),
+    radial-gradient(circle at 18% 22%, rgba(0, 238, 255, 0.14), transparent 52%),
+    radial-gradient(circle at 82% 84%, rgba(255, 121, 38, 0.12), transparent 56%);
+  animation: imageSkeletonPulse 1.65s ease-in-out infinite;
+}
+
+.image-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 34%, rgba(230, 243, 255, 0.22) 50%, transparent 66%);
+  animation: imageSkeletonScan 1.35s linear infinite;
+}
+
+.image-skeleton.is-error {
+  animation: none;
+}
+
+.image-skeleton.is-error::after {
+  animation: none;
+  opacity: 0;
+}
+
 .zoomable {
   position: relative;
   overflow: hidden;
@@ -1322,6 +1369,11 @@ main {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .image-skeleton,
+  .image-skeleton::after {
+    animation: none !important;
+  }
+
   .card-tilt-reactive,
   .card-tilt-reactive:hover {
     transform: none !important;

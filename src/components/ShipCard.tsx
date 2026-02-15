@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { Manufacturer, Ship } from '../data/ships';
 import { useTiltEffect } from '../hooks/useTiltEffect';
 import { useIsVisible } from '../hooks/useIsVisible';
+import SkeletonImage from './SkeletonImage';
 
 interface ShipCardProps {
   ship: Ship;
@@ -96,7 +97,7 @@ export default function ShipCard({
           onMouseEnter={(event) => event.currentTarget.classList.add('is-active')}
           onMouseLeave={(event) => event.currentTarget.classList.remove('is-active')}
         >
-          <img
+          <SkeletonImage
             src={image}
             alt={ship.name}
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"

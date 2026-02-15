@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ArrowDownRight, Sparkles } from 'lucide-react';
 import { Ship, ships } from '../data/ships';
 import { useTiltEffect } from '../hooks/useTiltEffect';
+import SkeletonImage from './SkeletonImage';
 
 interface HeroProps {
   onOpenFeaturedShip: (ship: Ship) => void;
@@ -297,7 +298,7 @@ export default function Hero({ onOpenFeaturedShip }: HeroProps) {
               onMouseEnter={(event) => event.currentTarget.classList.add('is-active')}
               onMouseLeave={(event) => event.currentTarget.classList.remove('is-active')}
             >
-              <img
+              <SkeletonImage
                 src={featuredShip.images[0]}
                 alt={featuredShip.name}
                 className="h-full w-full object-cover"
