@@ -1144,18 +1144,43 @@ export default function App() {
     clearFeaturedDockTimer();
     lockFeaturedDockDirection(direction, options?.fromHold ? FEATURED_DOCK_DIRECTION_LOCK_MS + 460 : FEATURED_DOCK_DIRECTION_LOCK_MS);
     keepFeaturedLooped();
+    stopFeaturedInertia();
 
     const currentIndex = findClosestFeaturedCardIndex(track, cards);
-    const currentShipId = cards[currentIndex]?.getAttribute('data-ship-id');
-    const currentBaseIndex = currentShipId
-      ? featuredCards.findIndex(({ ship }) => ship.id === currentShipId)
-      : -1;
-    const normalizedCurrentIndex =
-      currentBaseIndex >= 0 ? currentBaseIndex : ((currentIndex % featuredCards.length) + featuredCards.length) % featuredCards.length;
+    const normalizedCurrentIndex = ((currentIndex % featuredCards.length) + featuredCards.length) % featuredCards.length;
     const nextBaseIndex = (normalizedCurrentIndex + direction + featuredCards.length) % featuredCards.length;
-    const middleLoopIndex = Math.floor(FEATURED_REPEAT / 2);
-    const targetLoopCardIndex = middleLoopIndex * featuredCards.length + nextBaseIndex;
-    const targetCard = cards[targetLoopCardIndex] ?? cards[currentIndex];
+    const currentScrollLeft = track.scrollLeft;
+
+    let directionalTarget: HTMLElement | null = null;
+    let fallbackTarget: HTMLElement | null = null;
+    let directionalDistance = direction > 0 ? Number.POSITIVE_INFINITY : Number.NEGATIVE_INFINITY;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+
+    cards.forEach((card, index) => {
+      const baseIndex = ((index % featuredCards.length) + featuredCards.length) % featuredCards.length;
+      if (baseIndex !== nextBaseIndex) {
+        return;
+      }
+
+      const delta = getFeaturedCardCenterScroll(track, card) - currentScrollLeft;
+      const absoluteDelta = Math.abs(delta);
+      if (absoluteDelta < nearestDistance) {
+        nearestDistance = absoluteDelta;
+        fallbackTarget = card;
+      }
+
+      if (direction > 0) {
+        if (delta > 0.5 && delta < directionalDistance) {
+          directionalDistance = delta;
+          directionalTarget = card;
+        }
+      } else if (delta < -0.5 && delta > directionalDistance) {
+        directionalDistance = delta;
+        directionalTarget = card;
+      }
+    });
+
+    const targetCard = directionalTarget ?? fallbackTarget ?? cards[currentIndex];
     const targetScrollLeft = getFeaturedCardCenterScroll(track, targetCard);
     const distance = targetScrollLeft - track.scrollLeft;
     if (Math.abs(distance) < 0.5) {
@@ -1166,23 +1191,14 @@ export default function App() {
     const inputBoost = getFeaturedInputBoost();
     const holdBoost = options?.holdBoost ?? 1;
     const boost = Math.max(inputBoost, holdBoost);
-    const glideDistance = distance * (options?.fromHold ? 0.82 : 0.76);
+    const baseDuration = options?.fromHold ? 176 : 212;
     const glideDuration = Math.max(
-      FEATURED_GLIDE_MIN_MS + 56,
-      Math.min(FEATURED_GLIDE_MAX_MS, 184 + Math.abs(distance) * 0.1 - Math.min(94, (boost - 1) * 32)),
+      FEATURED_GLIDE_MIN_MS + 40,
+      Math.min(FEATURED_GLIDE_MAX_MS + 120, baseDuration + Math.abs(distance) * 0.2 - Math.min(112, (boost - 1) * 34)),
     );
     igniteFeaturedArrowPlasma(direction);
-    glideFeaturedBy(glideDistance, glideDuration, { keepLooping: true });
-
-    const residualDistance = distance - glideDistance;
-    const impulseDirection = residualDistance !== 0 ? -Math.sign(residualDistance) : -Math.sign(distance);
-    const holdImpulseBonus = options?.fromHold ? 0.4 : 0;
-    const impulseMagnitude = Math.min(
-      6.3,
-      1.45 + Math.abs(residualDistance) / 118 + Math.min(1.25, (boost - 1) * 0.74) + holdImpulseBonus,
-    );
-    applyFeaturedInertia(impulseDirection * impulseMagnitude, 'add');
-    scheduleFeaturedDockToCenter(options?.fromHold ? FEATURED_DOCK_IDLE_MS + 90 : FEATURED_DOCK_IDLE_MS + 50);
+    glideFeaturedBy(distance, glideDuration, { keepLooping: true });
+    scheduleFeaturedDockToCenter(options?.fromHold ? FEATURED_DOCK_IDLE_MS + 80 : FEATURED_DOCK_IDLE_MS + 44);
   };
 
   const tickFeaturedArrowHold = (timestamp: number) => {
@@ -1229,7 +1245,7 @@ export default function App() {
       frame: null,
     };
 
-    scrollFeatured(direction, { fromHold: true, holdBoost: 1.2 });
+    scrollFeatured(direction);
     featuredArrowHoldRef.current.frame = requestAnimationFrame(tickFeaturedArrowHold);
   };
 
