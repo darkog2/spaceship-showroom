@@ -176,9 +176,10 @@ export default function ShipCard({
                   event.stopPropagation();
                   onManufacturerClick(manufacturer.id);
                 }}
-                className="mt-2 rounded-md border border-cyan-holo/40 px-2 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-cyan-holo transition hover:border-amber-ui/60 hover:text-amber-ui hover:shadow-[0_0_12px_rgba(255,80,40,0.4)]"
+                className="ship-card-maker-pill mt-2"
               >
-                {manufacturer.short} {manufacturer.name}
+                <span className="ship-card-maker-short">{manufacturer.short}</span>
+                <span className="ship-card-maker-name">{manufacturer.name}</span>
               </button>
             )}
             <div className="ship-copy-box mt-3 max-w-[300px] px-3 py-2.5 backdrop-blur-[2px]">
