@@ -95,9 +95,18 @@ export default function ShipDetail({
   const activeImageSrc = ship.images[activeImage] ?? ship.images[0];
 
   const extendedStory = useMemo(() => {
+    if (ship.id === 'solstice-r9') {
+      return `${ship.description} Серия APEX VALKYR собирается на верфях Helios Transit Armada с использованием узлов, прошедших сертификацию в доках класса A-Prime. Корабль рассчитан на многолетнюю интенсивную эксплуатацию без потери тяговой мощности и стабильности.`;
+    }
+
     const maker = manufacturer?.name ?? 'профильным производственным консорциумом';
     return `${ship.description} Серия ${ship.name} собирается ${maker} с сертификацией узлов в доках класса A-Prime и рассчитана на длительную эксплуатацию без потери тяговой стабильности.`;
-  }, [manufacturer?.name, ship.description, ship.name]);
+  }, [manufacturer?.name, ship.description, ship.id, ship.name]);
+
+  const missionProfile =
+    ship.id === 'solstice-r9'
+      ? 'Подходит для ежедневных перелётов, деловых миссий на дальние станции и парных экспедиций.'
+      : roleByClass[ship.class];
 
   const technicalPassport = useMemo(() => {
     const cargoSlots =
@@ -123,11 +132,11 @@ export default function ShipDetail({
       { label: 'Доковый протокол', value: dockingWindow },
       { label: 'Грузовые слоты', value: cargoSlots },
       { label: 'Корпусный стандарт', value: ship.specs.hull },
-      { label: 'Режим эксплуатации', value: roleByClass[ship.class] },
+      { label: 'Режим эксплуатации', value: missionProfile },
       { label: 'Навигационный вывод', value: routeNote },
       { label: 'Реакторная группа', value: `Core-${ship.specs.cruiseKmS}${ship.specs.noise === 'Whisper' ? 'W' : 'L'}` },
     ];
-  }, [ship]);
+  }, [missionProfile, ship]);
 
   const handleMove = (event: React.MouseEvent<HTMLDivElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -245,7 +254,7 @@ export default function ShipDetail({
               </p>
               <p className="mt-4 font-rajdhani text-lg leading-relaxed text-text-light/72">{extendedStory}</p>
               <p className="mt-3 rounded-lg border border-cyan-holo/25 bg-dark-navy/35 p-3 font-rajdhani text-base text-text-light/70">
-                {roleByClass[ship.class]}
+                {missionProfile}
               </p>
               {ship.marketNote && <p className="mt-2 font-rajdhani text-base italic text-cyan-holo/80">{ship.marketNote}</p>}
               {manufacturer && (
@@ -280,7 +289,7 @@ export default function ShipDetail({
                 </div>
                 <div className="rounded-lg border border-cyan-holo/25 bg-dark-navy/35 p-3">
                   <p className="mb-2 inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.12em] text-text-light/55">
-                    <Users size={14} /> Крейсер
+                    <Users size={14} /> Скорость
                   </p>
                   <p className="spec-text">{ship.specs.cruiseKmS} км/с</p>
                 </div>
@@ -349,4 +358,3 @@ export default function ShipDetail({
     </div>
   );
 }
-

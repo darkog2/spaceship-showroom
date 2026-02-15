@@ -32,15 +32,27 @@ const ambienceVideos = [
 
 type VideoLayer = 0 | 1;
 
+const getInitialVideoIndexPair = (): [number, number] => {
+  if (ambienceVideos.length <= 1) {
+    return [0, 0];
+  }
+
+  const startIndex = Math.floor(Math.random() * ambienceVideos.length);
+  const preloadOffset = 1 + Math.floor(Math.random() * (ambienceVideos.length - 1));
+  const preloadIndex = (startIndex + preloadOffset) % ambienceVideos.length;
+
+  return [startIndex, preloadIndex];
+};
+
 export default function Hero({ onOpenFeaturedShip }: HeroProps) {
+  const heroSectionRef = useRef<HTMLElement | null>(null);
   const [activeLayer, setActiveLayer] = useState<VideoLayer>(0);
-  const [layerVideoIndex, setLayerVideoIndex] = useState<[number, number]>([
-    0,
-    ambienceVideos.length > 1 ? 1 : 0,
-  ]);
+  const [layerVideoIndex, setLayerVideoIndex] = useState<[number, number]>(() => getInitialVideoIndexPair());
+  const [isHeroInView, setIsHeroInView] = useState(true);
   const [nextReady, setNextReady] = useState(false);
   const videoRefs = useRef<[HTMLVideoElement | null, HTMLVideoElement | null]>([null, null]);
   const pendingSwitchRef = useRef(false);
+  const lastStartedVideoKeyRef = useRef('');
   const { onMouseMove: onHeroTiltMove, onMouseLeave: onHeroTiltLeave } = useTiltEffect({
     intensity: 1.18,
     perspective: 1220,
@@ -120,13 +132,55 @@ export default function Hero({ onOpenFeaturedShip }: HeroProps) {
   };
 
   useEffect(() => {
+    const section = heroSectionRef.current;
+    if (!section || typeof IntersectionObserver === 'undefined') {
+      setIsHeroInView(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsHeroInView(entry.isIntersecting);
+      },
+      { threshold: 0.18 }
+    );
+
+    observer.observe(section);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
     const activeVideo = videoRefs.current[activeLayer];
     if (!activeVideo) {
       return;
     }
-    activeVideo.currentTime = 0;
+
+    const activeVideoKey = `${activeLayer}-${activeVideoIndex}`;
+    if (lastStartedVideoKeyRef.current !== activeVideoKey) {
+      activeVideo.currentTime = 0;
+      lastStartedVideoKeyRef.current = activeVideoKey;
+    }
+
+    if (!isHeroInView) {
+      return;
+    }
+
     void activeVideo.play().catch(() => undefined);
-  }, [activeLayer, activeVideoIndex]);
+  }, [activeLayer, activeVideoIndex, isHeroInView]);
+
+  useEffect(() => {
+    const [firstLayerVideo, secondLayerVideo] = videoRefs.current;
+    if (!isHeroInView) {
+      firstLayerVideo?.pause();
+      secondLayerVideo?.pause();
+      return;
+    }
+
+    const activeVideo = videoRefs.current[activeLayer];
+    if (activeVideo) {
+      void activeVideo.play().catch(() => undefined);
+    }
+  }, [activeLayer, activeVideoIndex, isHeroInView]);
 
   useEffect(() => {
     if (ambienceVideos.length <= 1) {
@@ -151,7 +205,7 @@ export default function Hero({ onOpenFeaturedShip }: HeroProps) {
   };
 
   return (
-    <section id="home" className="relative overflow-hidden pb-16 pt-20 md:pt-28">
+    <section ref={heroSectionRef} id="home" className="relative overflow-hidden pb-16 pt-20 md:pt-28">
       <div className="pointer-events-none absolute inset-0 z-0">
         {([0, 1] as VideoLayer[]).map((layer) => {
           const isActive = layer === activeLayer;
@@ -165,10 +219,10 @@ export default function Hero({ onOpenFeaturedShip }: HeroProps) {
               className="absolute inset-0 h-full w-full object-cover transition-opacity duration-500"
               style={{ opacity: isActive ? 0.38 : 0 }}
               src={ambienceVideos[videoIndex]}
-              autoPlay={isActive}
+              autoPlay={isActive && isHeroInView}
               muted
               playsInline
-              preload="auto"
+              preload={isHeroInView ? 'auto' : 'metadata'}
               onEnded={isActive ? handleActiveVideoEnded : undefined}
               onLoadedData={isActive ? undefined : handleInactiveVideoReady}
               onCanPlay={isActive ? undefined : handleInactiveVideoReady}

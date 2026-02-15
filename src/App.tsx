@@ -218,7 +218,6 @@ export default function App() {
   const [compareOpen, setCompareOpen] = useState(false);
   const [uiNotice, setUiNotice] = useState<string | null>(null);
   const [checkoutDoneMessage, setCheckoutDoneMessage] = useState<string | null>(null);
-  const [quickViewShip, setQuickViewShip] = useState<Ship | null>(null);
   const [activeManufacturer, setActiveManufacturer] = useState<Manufacturer | null>(null);
   const [activeQuickNavSection, setActiveQuickNavSection] = useState<QuickNavSectionId>('home');
   const [featuredArrowPulseDirection, setFeaturedArrowPulseDirection] = useState<1 | -1 | 0>(0);
@@ -326,7 +325,7 @@ export default function App() {
     () => destinationHubs.filter((hub) => hub.type === checkoutForm.destinationType),
     [checkoutForm.destinationType],
   );
-  const overlayOpen = Boolean(selectedShip || quickViewShip || cartOpen || compareOpen || activeManufacturer);
+  const overlayOpen = Boolean(selectedShip || cartOpen || compareOpen || activeManufacturer);
 
   const flashNotice = (message: string) => {
     if (noticeTimeoutRef.current !== null) {
@@ -556,7 +555,6 @@ export default function App() {
   const focusManufacturer = (manufacturerId: string, shipToOpen?: Ship) => {
     setManufacturerFocusId(manufacturerId);
     setActiveManufacturer(null);
-    setQuickViewShip(null);
     if (shipToOpen) {
       setSelectedShip(shipToOpen);
       return;
@@ -1533,10 +1531,6 @@ export default function App() {
           setActiveManufacturer(null);
           return;
         }
-        if (quickViewShip) {
-          setQuickViewShip(null);
-          return;
-        }
         if (cartOpen) {
           setCartOpen(false);
           return;
@@ -1563,7 +1557,7 @@ export default function App() {
         navigateSelectedShip(-1);
         return;
       }
-      if (!selectedShip && !quickViewShip && !cartOpen && !compareOpen && !activeManufacturer) {
+      if (!selectedShip && !cartOpen && !compareOpen && !activeManufacturer) {
         if (event.key === 'ArrowRight') {
           scrollFeatured(1);
           return;
@@ -1578,7 +1572,7 @@ export default function App() {
     return () => {
       window.removeEventListener('keydown', onKeyDown);
     };
-  }, [activeManufacturer, cartOpen, compareOpen, manufacturerFocusId, quickViewShip, selectedShip, visibleShipPool]);
+  }, [activeManufacturer, cartOpen, compareOpen, manufacturerFocusId, selectedShip, visibleShipPool]);
 
   useEffect(() => {
     const onPointerMove = (event: globalThis.PointerEvent) => {
@@ -1979,6 +1973,7 @@ export default function App() {
                 {featuredLoopCards.map(({ key, entry, ship }) => {
                   const activeVariant = Math.min(ship.images.length - 1, featuredVariantByShip[ship.id] ?? 0);
                   const featuredImage = ship.images[activeVariant] ?? ship.images[0];
+                  const isCompared = compareList.some((item) => item.id === ship.id);
                   const compactDescription =
                     ship.description.length > 92 ? `${ship.description.slice(0, 89).trimEnd()}...` : ship.description;
 
@@ -2035,6 +2030,20 @@ export default function App() {
                           <div className="grid grid-cols-2 gap-2 sm:justify-items-end">
                             <button
                               type="button"
+                              className={`col-span-2 row-start-1 justify-self-end rounded-md border px-3 py-1 font-mono text-[11px] uppercase tracking-[0.12em] transition sm:col-span-1 sm:col-start-2 ${
+                                isCompared
+                                  ? 'border-amber-ui/65 bg-amber-ui/20 text-amber-ui shadow-[0_0_14px_rgba(255,80,40,0.45)]'
+                                  : 'border-cyan-holo/50 text-cyan-holo hover:border-cyan-holo/80 hover:shadow-[0_0_14px_rgba(0,238,255,0.42)]'
+                              }`}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                toggleCompare(ship);
+                              }}
+                            >
+                              {isCompared ? 'В сравнении' : 'Сравнить'}
+                            </button>
+                            <button
+                              type="button"
                               className="col-start-1 row-start-2 rounded-md border border-text-light/30 px-3 py-1 font-mono text-[11px] uppercase tracking-[0.12em] text-text-light/85 transition hover:border-amber-ui/55 hover:text-amber-ui"
                               onClick={(event) => {
                                 event.stopPropagation();
@@ -2042,16 +2051,6 @@ export default function App() {
                               }}
                             >
                               Открыть
-                            </button>
-                            <button
-                              type="button"
-                              className="col-span-2 row-start-1 justify-self-end rounded-md border border-cyan-holo/50 px-3 py-1 font-mono text-[11px] uppercase tracking-[0.12em] text-cyan-holo transition hover:border-cyan-holo/80 sm:col-span-1 sm:col-start-2"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                setQuickViewShip(ship);
-                              }}
-                            >
-                              Быстрый
                             </button>
                             <button
                               type="button"
@@ -2121,7 +2120,6 @@ export default function App() {
                       ship={ship}
                       onClick={setSelectedShip}
                       onCompare={toggleCompare}
-                      onQuickView={setQuickViewShip}
                       onAddToCart={addToCart}
                       onManufacturerClick={(id) => focusManufacturer(id)}
                       isCompared={compareList.some((item) => item.id === ship.id)}
@@ -2452,54 +2450,6 @@ export default function App() {
         />
       )}
 
-      {quickViewShip && (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-dark-navy/70 px-4 py-10"
-          onClick={() => setQuickViewShip(null)}
-        >
-          <div className="panel-shell max-w-3xl p-6" onClick={(event) => event.stopPropagation()}>
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="font-mono text-xs uppercase tracking-[0.14em] text-amber-ui">Быстрый просмотр</p>
-                <h3 className="mt-2 font-orbitron text-2xl text-text-light">{quickViewShip.name}</h3>
-                <p className="mt-1 font-rajdhani text-base text-text-light/70">
-                  {classLabels[quickViewShip.class]} / Экипаж {quickViewShip.crewMin}-{quickViewShip.crewMax}
-                </p>
-              </div>
-              <button
-                type="button"
-                className="rounded-md border border-cyan-holo/35 px-3 py-1 font-mono text-xs uppercase tracking-[0.12em] text-cyan-holo"
-                onClick={() => setQuickViewShip(null)}
-              >
-                Закрыть
-              </button>
-            </div>
-            <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="zoomable relative h-52 overflow-hidden rounded-xl">
-                <img src={quickViewShip.images[0]} alt={quickViewShip.name} className="h-full w-full object-cover" />
-              </div>
-              <div className="space-y-3">
-                <p className="font-rajdhani text-lg text-text-light/75">{quickViewShip.description}</p>
-                <div>
-                  <p className="font-mono text-xs uppercase tracking-[0.12em] text-text-light/55">Цена от</p>
-                  <p className="font-orbitron text-2xl text-amber-ui">${(quickViewShip.priceUsd / 1000).toFixed(0)}K</p>
-                </div>
-                <button
-                  className="btn-primary w-full"
-                  type="button"
-                  onClick={() => {
-                    addToCart(quickViewShip);
-                    setQuickViewShip(null);
-                  }}
-                >
-                  В корзину
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="fixed bottom-6 right-6 z-[65] flex flex-col gap-3">
         <button
           type="button"
@@ -2680,13 +2630,22 @@ export default function App() {
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 {compareList.map((item) => (
                   <article key={item.id} className="panel-shell p-4">
+                    <div className="mb-3 overflow-hidden rounded-lg border border-cyan-holo/25 bg-dark-navy/45">
+                      <img
+                        src={item.images[0]}
+                        alt={item.name}
+                        className="h-24 w-full object-cover"
+                        loading="lazy"
+                        draggable={false}
+                      />
+                    </div>
                     <h4 className="font-orbitron text-lg uppercase tracking-[0.08em] text-amber-ui">{item.name}</h4>
                     <p className="mt-1 font-rajdhani text-sm text-text-light/65">
                       {classLabels[item.class]} / Экипаж {item.crewMin}-{item.crewMax}
                     </p>
                     <div className="mt-3 space-y-1 font-rajdhani text-base text-text-light/75">
                       <p>Дальность: {item.specs.rangeKm} км</p>
-                      <p>Крейсер: {item.specs.cruiseKmS} км/с</p>
+                      <p>Скорость: {item.specs.cruiseKmS} км/с</p>
                       <p>Подготовка: {item.specs.launchReadyMin} мин</p>
                     </div>
                     <button

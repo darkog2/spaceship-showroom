@@ -7,7 +7,6 @@ interface ShipCardProps {
   ship: Ship;
   onClick: (ship: Ship) => void;
   onCompare: (ship: Ship) => void;
-  onQuickView: (ship: Ship) => void;
   onAddToCart: (ship: Ship) => void;
   onManufacturerClick: (manufacturerId: string) => void;
   isCompared: boolean;
@@ -46,7 +45,6 @@ export default function ShipCard({
   ship,
   onClick,
   onCompare,
-  onQuickView,
   onAddToCart,
   onManufacturerClick,
   isCompared,
@@ -131,7 +129,7 @@ export default function ShipCard({
               <p className="spec-text spec-glow">{ship.specs.rangeKm}</p>
             </div>
             <div>
-              <p className="font-mono text-xs uppercase tracking-[0.11em] text-text-light/60">Крейсер</p>
+              <p className="font-mono text-xs uppercase tracking-[0.11em] text-text-light/60">Скорость</p>
               <p className="spec-text spec-glow">{ship.specs.cruiseKmS}</p>
             </div>
             <div>
@@ -199,22 +197,12 @@ export default function ShipCard({
                 type="button"
                 onClick={(event) => {
                   event.stopPropagation();
-                  onQuickView(ship);
-                }}
-                className="w-full rounded-md border border-cyan-holo/45 px-3 py-1.5 text-center font-mono text-[10px] uppercase tracking-[0.14em] text-cyan-holo transition hover:border-cyan-holo/75 hover:shadow-[0_0_16px_rgba(0,238,255,0.4)]"
-              >
-                Быстрый
-              </button>
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation();
                   onCompare(ship);
                 }}
                 className={`w-full rounded-md border px-3 py-1.5 text-center font-mono text-[10px] uppercase tracking-[0.14em] transition ${
                   isCompared
                     ? 'border-amber-ui/70 bg-amber-ui/25 text-amber-ui shadow-[0_0_16px_rgba(255,80,40,0.5)]'
-                    : 'border-magenta-neon/45 text-magenta-neon hover:border-amber-ui/60 hover:text-amber-ui hover:shadow-[0_0_16px_rgba(255,80,40,0.4)]'
+                    : 'border-cyan-holo/45 text-cyan-holo hover:border-cyan-holo/80 hover:text-cyan-holo hover:shadow-[0_0_16px_rgba(0,238,255,0.4)]'
                 }`}
               >
                 {isCompared ? 'В сравнении' : 'Сравнить'}
