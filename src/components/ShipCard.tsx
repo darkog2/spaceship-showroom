@@ -165,8 +165,8 @@ export default function ShipCard({
           )}
         </div>
 
-        <div className="flex items-end justify-between border-t border-cyan-holo/25 p-4">
-          <div>
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 border-t border-cyan-holo/25 p-4">
+          <div className="min-w-0">
             <p className="font-rajdhani text-sm uppercase tracking-[0.1em] text-text-light/60">Цена от</p>
             <p className="font-orbitron text-2xl tracking-[0.06em] text-amber-ui drop-shadow-lg">${(ship.priceUsd / 1000).toFixed(0)}K</p>
             {manufacturer && (
@@ -181,27 +181,27 @@ export default function ShipCard({
                 РџСЂРѕРёР·РІРѕРґРёС‚РµР»СЊ: {manufacturer.name}
               </button>
             )}
-            <div className="ship-copy-box mt-3 max-w-[300px] px-3 py-2.5 backdrop-blur-[2px]">
+            <div className="ship-copy-box mt-3 w-full max-w-[300px] px-3 py-2.5 backdrop-blur-[2px]">
               <p className="ship-copy-text">{shortDescription}</p>
             </div>
             {ship.marketNote && (
               <p className="mt-2 max-w-[280px] font-rajdhani text-sm italic text-text-light/70">{ship.marketNote}</p>
             )}
           </div>
-          <div className="flex flex-col items-end gap-2">
+          <div className="flex w-[112px] shrink-0 flex-col items-stretch gap-2">
             <span
-              className={`rounded-md border px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.12em] shadow-md ${availabilityClass}`}
+              className={`w-full rounded-md border px-3 py-1.5 text-center font-mono text-[11px] uppercase tracking-[0.12em] shadow-md ${availabilityClass}`}
             >
               {availabilityLabels[ship.availability]}
             </span>
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col items-stretch gap-1.5">
               <button
                 type="button"
                 onClick={(event) => {
                   event.stopPropagation();
                   onQuickView(ship);
                 }}
-                className="rounded-md border border-cyan-holo/45 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-cyan-holo transition hover:border-cyan-holo/75 hover:shadow-[0_0_16px_rgba(0,238,255,0.4)]"
+                className="w-full rounded-md border border-cyan-holo/45 px-3 py-1.5 text-center font-mono text-[10px] uppercase tracking-[0.14em] text-cyan-holo transition hover:border-cyan-holo/75 hover:shadow-[0_0_16px_rgba(0,238,255,0.4)]"
               >
                 Быстрый
               </button>
@@ -211,7 +211,7 @@ export default function ShipCard({
                   event.stopPropagation();
                   onCompare(ship);
                 }}
-                className={`rounded-md border px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.14em] transition ${
+                className={`w-full rounded-md border px-3 py-1.5 text-center font-mono text-[10px] uppercase tracking-[0.14em] transition ${
                   isCompared
                     ? 'border-amber-ui/70 bg-amber-ui/25 text-amber-ui shadow-[0_0_16px_rgba(255,80,40,0.5)]'
                     : 'border-magenta-neon/45 text-magenta-neon hover:border-amber-ui/60 hover:text-amber-ui hover:shadow-[0_0_16px_rgba(255,80,40,0.4)]'
@@ -225,7 +225,7 @@ export default function ShipCard({
                   event.stopPropagation();
                   onAddToCart(ship);
                 }}
-                className="rounded-md border border-amber-ui/55 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-amber-ui transition hover:border-amber-ui/80 hover:bg-amber-ui/15 hover:shadow-[0_0_18px_rgba(255,80,40,0.5)]"
+                className="w-full rounded-md border border-amber-ui/55 px-3 py-1.5 text-center font-mono text-[10px] uppercase tracking-[0.14em] text-amber-ui transition hover:border-amber-ui/80 hover:bg-amber-ui/15 hover:shadow-[0_0_18px_rgba(255,80,40,0.5)]"
               >
                 В корзину
               </button>
