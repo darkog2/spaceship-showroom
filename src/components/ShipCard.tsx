@@ -178,8 +178,7 @@ export default function ShipCard({
                 }}
                 className="ship-card-maker-pill mt-2"
               >
-                <span className="ship-card-maker-short">{manufacturer.short}</span>
-                <span className="ship-card-maker-name">{manufacturer.name}</span>
+                РџСЂРѕРёР·РІРѕРґРёС‚РµР»СЊ: {manufacturer.name}
               </button>
             )}
             <div className="ship-copy-box mt-3 max-w-[300px] px-3 py-2.5 backdrop-blur-[2px]">
