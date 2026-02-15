@@ -188,24 +188,19 @@ export default function ShipFilter({ ships, onFilter, variant = 'default' }: Shi
     setExpandedSections((prev) => ({ ...prev, [section]: !prev[section] }));
   };
 
-  const getOptionClass = (active: boolean, dense = false) => {
-    const base = isSidebar
-      ? `w-full rounded-lg border px-2 py-1.5 font-rajdhani text-[12px] font-semibold leading-[1.15] tracking-[0.01em] text-center transition-colors duration-200 ${
-          dense ? 'min-h-[30px]' : 'min-h-[34px]'
-        } whitespace-normal break-words [word-break:break-word]`
-      : 'rounded-md border px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.1em] transition-colors duration-200';
-
-    const activeStyle = 'border-amber-ui/60 bg-amber-ui/14 text-amber-ui';
-    const idleStyle = isSidebar
-      ? 'border-text-light/14 bg-dark-navy/22 text-text-light/72 hover:border-amber-ui/35 hover:text-text-light'
-      : 'border-cyan-holo/28 text-text-light/70 hover:border-cyan-holo/45 hover:text-text-light';
-
-    return `${base} ${active ? activeStyle : idleStyle}`;
+  const getOptionClass = (active: boolean, dense = false, extraClass = '') => {
+    return [
+      'filter-option-btn',
+      isSidebar ? 'is-sidebar' : 'is-default',
+      dense ? 'is-dense' : '',
+      active ? 'is-active' : 'is-idle',
+      extraClass,
+    ]
+      .filter(Boolean)
+      .join(' ');
   };
 
-  const sectionLabelClass = `font-oxanium uppercase tracking-[0.08em] text-text-light/80 ${
-    isSidebar ? 'text-xs' : 'text-base'
-  }`;
+  const sectionLabelClass = `filter-section-title ${isSidebar ? 'is-sidebar' : 'is-default'}`;
 
   const handlePriceInputChange =
     (bound: 'min' | 'max') =>
@@ -233,30 +228,30 @@ export default function ShipFilter({ ships, onFilter, variant = 'default' }: Shi
             key={`${item.label}-${idx}`}
             onClick={item.remover}
             type="button"
-            className="group flex items-center gap-2 rounded-full border border-amber-ui/35 bg-dark-navy/45 px-3.5 py-1.5 text-xs font-semibold text-amber-ui transition-colors hover:border-amber-ui/55 hover:bg-dark-navy/62"
+            className="filter-chip-btn group"
           >
             {item.label}
             <X size={14} className="opacity-70 transition-opacity group-hover:opacity-100" />
           </button>
         ))
       ) : (
-        <span className="text-sm text-text-light/60">Без активных фильтров</span>
+        <span className="filter-active-empty">Без активных фильтров</span>
       )}
     </div>
   );
 
   const renderSection = (key: SectionKey, title: string, content: ReactNode) => (
-    <div className={`rounded-lg border border-text-light/10 bg-dark-navy/14 ${isSidebar ? 'px-2 py-1.5' : 'px-2.5 py-2'}`}>
+    <div className={`filter-section-card ${isSidebar ? 'is-sidebar' : 'is-default'}`}>
       <button
         type="button"
         onClick={() => toggleSection(key)}
         aria-expanded={expandedSections[key]}
-        className="flex w-full items-center justify-between gap-2 text-left transition-colors hover:text-amber-ui"
+        className="filter-section-head"
       >
         <span className={sectionLabelClass}>{title}</span>
         <ChevronDown
           size={14}
-          className={`text-text-light/50 transition-transform duration-300 ${expandedSections[key] ? 'rotate-180' : ''}`}
+          className={`filter-section-chevron transition-transform duration-300 ${expandedSections[key] ? 'rotate-180' : ''}`}
         />
       </button>
       <div
@@ -275,7 +270,7 @@ export default function ShipFilter({ ships, onFilter, variant = 'default' }: Shi
     <section
       className={`panel-shell ship-filter-panel ${isSidebar ? 'ship-filter-panel--sidebar p-2.5' : 'ship-filter-panel--default mb-8 p-5 sm:p-6'}`}
     >
-      <div className={`flex flex-wrap items-center justify-between gap-2 ${isSidebar ? 'mb-3 border-b border-text-light/10 pb-2.5' : 'mb-4'}`}>
+      <div className={`filter-toolbar ${isSidebar ? 'mb-3 pb-2.5' : 'mb-4'}`}>
         <button
           type="button"
           onClick={toggleAllSections}
@@ -290,7 +285,7 @@ export default function ShipFilter({ ships, onFilter, variant = 'default' }: Shi
         <button
           onClick={resetFilters}
           type="button"
-          className="inline-flex items-center gap-1.5 rounded-lg border border-amber-ui/35 bg-dark-navy/20 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-amber-ui transition-colors hover:border-amber-ui/55 hover:bg-dark-navy/35"
+          className="filter-reset-btn"
         >
           <RotateCcw size={12} /> Сбросить
         </button>
@@ -343,7 +338,11 @@ export default function ShipFilter({ ships, onFilter, variant = 'default' }: Shi
               <button
                 type="button"
                 onClick={() => updateFilter({ minPrice: minAvailablePrice, maxPrice: maxAvailablePrice })}
-                className={getOptionClass(filters.minPrice === minAvailablePrice && filters.maxPrice === maxAvailablePrice, true)}
+                className={getOptionClass(
+                  filters.minPrice === minAvailablePrice && filters.maxPrice === maxAvailablePrice,
+                  true,
+                  isSidebar ? 'col-span-2' : '',
+                )}
               >
                 Весь диапазон
               </button>
@@ -372,16 +371,21 @@ export default function ShipFilter({ ships, onFilter, variant = 'default' }: Shi
             <button onClick={() => updateFilter({ shipClass: 'all' })} className={getOptionClass(filters.shipClass === 'all')} type="button">
               Все
             </button>
-            {classOptions.map((shipClass) => (
-              <button
-                key={shipClass}
-                onClick={() => updateFilter({ shipClass })}
-                className={getOptionClass(filters.shipClass === shipClass)}
-                type="button"
-              >
-                {classLabels[shipClass]}
-              </button>
-            ))}
+            {classOptions.map((shipClass, index) => {
+              const totalClassButtons = classOptions.length + 1;
+              const optionPosition = index + 2;
+              const shouldSpan = isSidebar && totalClassButtons % 2 !== 0 && optionPosition === totalClassButtons;
+              return (
+                <button
+                  key={shipClass}
+                  onClick={() => updateFilter({ shipClass })}
+                  className={getOptionClass(filters.shipClass === shipClass, false, shouldSpan ? 'col-span-2' : '')}
+                  type="button"
+                >
+                  {classLabels[shipClass]}
+                </button>
+              );
+            })}
           </div>,
         )}
 
@@ -405,13 +409,13 @@ export default function ShipFilter({ ships, onFilter, variant = 'default' }: Shi
                 className="range-input"
               />
             </div>
-            <div className="flex justify-between text-xs text-text-light/60">
-              <span>1</span>
-              <span className="text-sm font-bold text-amber-ui">{filters.crewMax !== null ? `До ${filters.crewMax}` : 'Любой'}</span>
-              <span>{maxCrew}</span>
+            <div className="range-meta-row">
+              <span className="range-boundary">1</span>
+              <span className="range-current-value">{filters.crewMax !== null ? `До ${filters.crewMax}` : 'Любой'}</span>
+              <span className="range-boundary">{maxCrew}</span>
             </div>
-            <div className={isSidebar ? 'grid grid-cols-3 gap-2' : 'flex flex-wrap gap-2'}>
-              <button onClick={() => updateFilter({ crewMax: null })} className={getOptionClass(filters.crewMax === null, true)} type="button">
+            <div className={isSidebar ? 'grid grid-cols-2 gap-2' : 'flex flex-wrap gap-2'}>
+              <button onClick={() => updateFilter({ crewMax: null })} className={getOptionClass(filters.crewMax === null, true, isSidebar ? 'col-span-2' : '')} type="button">
                 Любой
               </button>
               {crewOptions.map((crew) => (
