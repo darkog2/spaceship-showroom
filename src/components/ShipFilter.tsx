@@ -257,7 +257,7 @@ export default function ShipFilter({ ships, onFilter, variant = 'default' }: Shi
       <div
         className={`grid overflow-hidden transition-all duration-300 ease-out ${
           expandedSections[key]
-            ? `${isSidebar ? 'mt-2' : 'mt-3'} grid-rows-[1fr] opacity-100`
+            ? `${isSidebar ? 'mt-1.5' : 'mt-3'} grid-rows-[1fr] opacity-100`
             : 'mt-0 grid-rows-[0fr] opacity-0'
         }`}
       >
@@ -270,7 +270,7 @@ export default function ShipFilter({ ships, onFilter, variant = 'default' }: Shi
     <section
       className={`panel-shell ship-filter-panel ${isSidebar ? 'ship-filter-panel--sidebar p-2.5' : 'ship-filter-panel--default mb-8 p-5 sm:p-6'}`}
     >
-      <div className={`filter-toolbar ${isSidebar ? 'mb-3 pb-2.5' : 'mb-4'}`}>
+      <div className={`filter-toolbar ${isSidebar ? 'mb-2.5 pb-2' : 'mb-4'}`}>
         <button
           type="button"
           onClick={toggleAllSections}
@@ -298,13 +298,13 @@ export default function ShipFilter({ ships, onFilter, variant = 'default' }: Shi
         </div>
       )}
 
-      {isSidebar && <div className="mb-3">{renderActiveFilters()}</div>}
+      {isSidebar && <div className="mb-2.5">{renderActiveFilters()}</div>}
 
-      <div className={isSidebar ? 'grid grid-cols-1 gap-2.5' : 'grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4'}>
+      <div className={isSidebar ? 'grid grid-cols-1 gap-2' : 'grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4'}>
         {renderSection(
           'price',
           'Цена',
-          <div className={isSidebar ? 'space-y-3' : 'space-y-4'}>
+          <div className={isSidebar ? 'space-y-2' : 'space-y-4'}>
             <p className="text-xs text-text-light/55">
               Фактический диапазон: {formatPriceK(minAvailablePrice)} - {formatPriceK(maxAvailablePrice)}
             </p>
@@ -334,7 +334,7 @@ export default function ShipFilter({ ships, onFilter, variant = 'default' }: Shi
                 />
               </label>
             </div>
-            <div className={isSidebar ? 'grid grid-cols-2 gap-2' : 'flex flex-wrap gap-2'}>
+            <div className={isSidebar ? 'grid grid-cols-2 gap-1.5' : 'flex flex-wrap gap-2'}>
               <button
                 type="button"
                 onClick={() => updateFilter({ minPrice: minAvailablePrice, maxPrice: maxAvailablePrice })}
@@ -367,7 +367,7 @@ export default function ShipFilter({ ships, onFilter, variant = 'default' }: Shi
         {renderSection(
           'class',
           'Класс',
-          <div className={isSidebar ? 'grid grid-cols-2 gap-2' : 'flex flex-wrap gap-2'}>
+          <div className={isSidebar ? 'grid grid-cols-2 gap-1.5' : 'flex flex-wrap gap-2'}>
             <button onClick={() => updateFilter({ shipClass: 'all' })} className={getOptionClass(filters.shipClass === 'all')} type="button">
               Все
             </button>
@@ -392,7 +392,7 @@ export default function ShipFilter({ ships, onFilter, variant = 'default' }: Shi
         {renderSection(
           'crew',
           'Экипаж',
-          <div className={isSidebar ? 'space-y-3' : 'space-y-5'}>
+          <div className={isSidebar ? 'space-y-2' : 'space-y-5'}>
             <div className="range-slider-wrapper">
               <div className="range-track" />
               <div className="range-progress" style={{ width: `${crewPercent}%` }} />
@@ -414,7 +414,7 @@ export default function ShipFilter({ ships, onFilter, variant = 'default' }: Shi
               <span className="range-current-value">{filters.crewMax !== null ? `До ${filters.crewMax}` : 'Любой'}</span>
               <span className="range-boundary">{maxCrew}</span>
             </div>
-            <div className={isSidebar ? 'grid grid-cols-2 gap-2' : 'flex flex-wrap gap-2'}>
+            <div className={isSidebar ? 'grid grid-cols-2 gap-1.5' : 'flex flex-wrap gap-2'}>
               <button onClick={() => updateFilter({ crewMax: null })} className={getOptionClass(filters.crewMax === null, true, isSidebar ? 'col-span-2' : '')} type="button">
                 Любой
               </button>
@@ -435,7 +435,7 @@ export default function ShipFilter({ ships, onFilter, variant = 'default' }: Shi
         {renderSection(
           'status',
           'Статус',
-          <div className={isSidebar ? 'grid grid-cols-1 gap-2' : 'flex flex-wrap gap-2'}>
+          <div className={isSidebar ? 'grid grid-cols-1 gap-1.5' : 'flex flex-wrap gap-2'}>
             <button onClick={() => updateFilter({ availability: 'all' })} className={getOptionClass(filters.availability === 'all')} type="button">
               Все
             </button>

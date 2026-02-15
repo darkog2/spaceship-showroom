@@ -372,14 +372,16 @@ main {
 
 .catalog-side-filter-sticky {
   position: sticky;
-  top: 86px;
-  max-height: calc(100dvh - 94px);
+  top: 82px;
+  max-height: calc(100svh - 90px);
+  max-height: calc(100dvh - 90px);
   pointer-events: auto;
 }
 
 .catalog-side-filter-sticky > .panel-shell {
   margin-bottom: 0 !important;
-  max-height: calc(100dvh - 94px);
+  max-height: calc(100svh - 90px);
+  max-height: calc(100dvh - 90px);
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior: contain;
@@ -440,6 +442,47 @@ main {
 .ship-filter-panel--sidebar {
   backdrop-filter: blur(12px);
   font-size: 0.95rem;
+}
+
+.ship-filter-panel--sidebar .filter-toolbar {
+  gap: 8px;
+}
+
+.ship-filter-panel--sidebar .filter-toggle-btn {
+  min-height: 33px;
+  padding: 6px 8px;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+}
+
+.ship-filter-panel--sidebar .filter-toggle-btn__state {
+  font-size: 8px;
+  padding: 1px 5px;
+}
+
+.ship-filter-panel--sidebar .filter-reset-btn {
+  min-height: 33px;
+  padding: 6px 8px;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+}
+
+.ship-filter-panel--sidebar .filter-active-empty {
+  min-height: 20px;
+  font-size: 12px;
+}
+
+.ship-filter-panel--sidebar .filter-chip-btn {
+  padding: 4px 9px;
+  font-size: 12px;
+}
+
+.ship-filter-panel--sidebar .filter-section-card.is-sidebar {
+  padding: 7px 8px;
+}
+
+.ship-filter-panel--sidebar .filter-section-title.is-sidebar {
+  font-size: 11px;
 }
 
 .filter-toolbar {
@@ -664,6 +707,17 @@ main {
   font-size: 14px;
 }
 
+.ship-filter-panel--sidebar .filter-option-btn.is-sidebar {
+  min-height: 32px;
+  padding: 5px 8px;
+  font-size: 12px;
+}
+
+.ship-filter-panel--sidebar .filter-option-btn.is-sidebar.is-dense {
+  min-height: 30px;
+  font-size: 11px;
+}
+
 .filter-option-btn.is-default {
   font-size: 13px;
   text-transform: uppercase;
@@ -857,6 +911,21 @@ main {
   margin: 2px 0 0;
 }
 
+.ship-filter-panel--sidebar .range-meta-row {
+  gap: 8px;
+}
+
+.ship-filter-panel--sidebar .range-boundary {
+  font-size: 11px;
+}
+
+.ship-filter-panel--sidebar .range-current-value {
+  min-height: 22px;
+  min-width: 74px;
+  padding: 1px 8px;
+  font-size: 13px;
+}
+
 .ship-filter-panel--sidebar .range-track {
   height: 9px;
 }
@@ -872,28 +941,36 @@ main {
 }
 
 .ship-filter-panel--sidebar .filter-price-input {
-  padding: 7px 9px;
-  font-size: 14px;
+  padding: 6px 8px;
+  font-size: 13px;
+}
+
+.ship-filter-panel--sidebar .filter-price-caption {
+  font-size: 10px;
 }
 @media (max-height: 860px) {
   .catalog-side-filter-sticky {
-    top: 80px;
-    max-height: calc(100dvh - 86px);
+    top: 78px;
+    max-height: calc(100svh - 84px);
+    max-height: calc(100dvh - 84px);
   }
 
   .catalog-side-filter-sticky > .panel-shell {
-    max-height: calc(100dvh - 86px);
+    max-height: calc(100svh - 84px);
+    max-height: calc(100dvh - 84px);
   }
 }
 
 @media (max-height: 760px) {
   .catalog-side-filter-sticky {
-    top: 76px;
-    max-height: calc(100dvh - 80px);
+    top: 74px;
+    max-height: calc(100svh - 78px);
+    max-height: calc(100dvh - 78px);
   }
 
   .catalog-side-filter-sticky > .panel-shell {
-    max-height: calc(100dvh - 80px);
+    max-height: calc(100svh - 78px);
+    max-height: calc(100dvh - 78px);
   }
 }
 
