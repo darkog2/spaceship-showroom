@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Manufacturer, Ship } from '../data/ships';
 import { useTiltEffect } from '../hooks/useTiltEffect';
+import { useIsVisible } from '../hooks/useIsVisible';
 
 interface ShipCardProps {
   ship: Ship;
@@ -52,6 +53,7 @@ export default function ShipCard({
   manufacturer,
 }: ShipCardProps) {
   const [activeImage, setActiveImage] = useState(0);
+  const { ref: visRef, isVisible } = useIsVisible();
   const { onMouseMove: onCardTiltMove, onMouseLeave: onCardTiltLeave } = useTiltEffect({ intensity: 1 });
 
   const availabilityClass =
@@ -83,7 +85,8 @@ export default function ShipCard({
 
   return (
     <article
-      className="group card-tilt-reactive cursor-pointer"
+      ref={visRef}
+      className={`group card-tilt-reactive cursor-pointer${isVisible ? '' : ' paused-offscreen'}`}
       onClick={() => onClick(ship)}
       onMouseMove={onCardTiltMove}
       onMouseLeave={onCardTiltLeave}
