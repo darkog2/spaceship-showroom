@@ -11,6 +11,9 @@ export const useTiltEffect = (options?: TiltOptions) => {
 
   const onMouseMove = useCallback(
     (event: ReactMouseEvent<HTMLElement>) => {
+      if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        return;
+      }
       const element = event.currentTarget;
       const rect = element.getBoundingClientRect();
       if (!rect.width || !rect.height) {
@@ -35,6 +38,9 @@ export const useTiltEffect = (options?: TiltOptions) => {
   );
 
   const onMouseLeave = useCallback((event: ReactMouseEvent<HTMLElement>) => {
+    if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      return;
+    }
     const element = event.currentTarget;
     element.style.setProperty('--card-tilt-x', '0deg');
     element.style.setProperty('--card-tilt-y', '0deg');
@@ -44,4 +50,3 @@ export const useTiltEffect = (options?: TiltOptions) => {
 
   return { onMouseMove, onMouseLeave };
 };
-

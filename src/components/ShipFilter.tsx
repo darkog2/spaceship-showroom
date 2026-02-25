@@ -1,6 +1,7 @@
 import { type ChangeEvent, type ReactNode, useEffect, useMemo, useState } from 'react';
 import { ChevronDown, Filter, RotateCcw, X } from 'lucide-react';
 import { Ship } from '../data/ships';
+import { shipAvailabilityLabels, shipClassLabels } from '../constants/shipMeta';
 
 interface ShipFilterProps {
   ships: Ship[];
@@ -30,20 +31,6 @@ const allSectionsClosed: Record<SectionKey, boolean> = {
   class: false,
   crew: false,
   status: false,
-};
-
-const classLabels: Record<Ship['class'], string> = {
-  'Solo Pod': 'Соло-под',
-  'Duo Skiff': 'Дуо-скифф',
-  'Tri Cabin': 'Три-кабина',
-  'Quad Shuttle': 'Квадро-шаттл',
-};
-
-const availabilityLabels: Record<Ship['availability'], string> = {
-  'In Stock': 'В наличии',
-  Limited: 'Ограниченно',
-  Prototype: 'Прототип',
-  'On Request': 'Под заказ',
 };
 
 const clampNumber = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
@@ -156,7 +143,7 @@ export default function ShipFilter({ ships, onFilter, variant = 'default' }: Shi
 
     if (filters.shipClass !== 'all') {
       list.push({
-        label: classLabels[filters.shipClass as Ship['class']],
+        label: shipClassLabels[filters.shipClass as Ship['class']],
         remover: () => updateFilter({ shipClass: 'all' }),
       });
     }
@@ -170,7 +157,7 @@ export default function ShipFilter({ ships, onFilter, variant = 'default' }: Shi
 
     if (filters.availability !== 'all') {
       list.push({
-        label: availabilityLabels[filters.availability as Ship['availability']],
+        label: shipAvailabilityLabels[filters.availability as Ship['availability']],
         remover: () => updateFilter({ availability: 'all' }),
       });
     }
@@ -240,31 +227,41 @@ export default function ShipFilter({ ships, onFilter, variant = 'default' }: Shi
     </div>
   );
 
-  const renderSection = (key: SectionKey, title: string, content: ReactNode) => (
-    <div className={`filter-section-card ${isSidebar ? 'is-sidebar' : 'is-default'}`}>
-      <button
-        type="button"
-        onClick={() => toggleSection(key)}
-        aria-expanded={expandedSections[key]}
-        className="filter-section-head"
-      >
-        <span className={sectionLabelClass}>{title}</span>
-        <ChevronDown
-          size={14}
-          className={`filter-section-chevron transition-transform duration-300 ${expandedSections[key] ? 'rotate-180' : ''}`}
-        />
-      </button>
-      <div
-        className={`grid overflow-hidden transition-all duration-300 ease-out ${
-          expandedSections[key]
-            ? `${isSidebar ? 'mt-1.5' : 'mt-3'} grid-rows-[1fr] opacity-100`
-            : 'mt-0 grid-rows-[0fr] opacity-0'
-        }`}
-      >
-        <div className="overflow-hidden">{content}</div>
+  const renderSection = (key: SectionKey, title: string, content: ReactNode) => {
+    const headingId = `filter-section-heading-${variant}-${key}`;
+    const contentId = `filter-section-content-${variant}-${key}`;
+
+    return (
+      <div className={`filter-section-card ${isSidebar ? 'is-sidebar' : 'is-default'}`}>
+        <button
+          type="button"
+          onClick={() => toggleSection(key)}
+          aria-expanded={expandedSections[key]}
+          aria-controls={contentId}
+          id={headingId}
+          className="filter-section-head"
+        >
+          <span className={sectionLabelClass}>{title}</span>
+          <ChevronDown
+            size={14}
+            className={`filter-section-chevron transition-transform duration-300 ${expandedSections[key] ? 'rotate-180' : ''}`}
+          />
+        </button>
+        <div
+          id={contentId}
+          role="region"
+          aria-labelledby={headingId}
+          className={`grid overflow-hidden transition-all duration-300 ease-out ${
+            expandedSections[key]
+              ? `${isSidebar ? 'mt-1.5' : 'mt-3'} grid-rows-[1fr] opacity-100`
+              : 'mt-0 grid-rows-[0fr] opacity-0'
+          }`}
+        >
+          <div className="overflow-hidden">{content}</div>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <section
@@ -382,7 +379,7 @@ export default function ShipFilter({ ships, onFilter, variant = 'default' }: Shi
                   className={getOptionClass(filters.shipClass === shipClass, false, shouldSpan ? 'col-span-2' : '')}
                   type="button"
                 >
-                  {classLabels[shipClass]}
+                  {shipClassLabels[shipClass]}
                 </button>
               );
             })}
@@ -446,7 +443,7 @@ export default function ShipFilter({ ships, onFilter, variant = 'default' }: Shi
                 className={getOptionClass(filters.availability === status)}
                 type="button"
               >
-                {availabilityLabels[status]}
+                {shipAvailabilityLabels[status]}
               </button>
             ))}
           </div>,

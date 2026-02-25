@@ -1,7 +1,15 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Gauge, Shield, Users, X } from 'lucide-react';
 import { Manufacturer, Ship } from '../data/ships';
 import SkeletonImage from './SkeletonImage';
+import {
+  formatShipClassCrew,
+  shipAvailabilityLabels,
+  shipBadgeLabels,
+  shipBadgeToneClasses,
+  shipTrimLabels,
+} from '../constants/shipMeta';
+import { useDialogFocusTrap } from '../hooks/useDialogFocusTrap';
 
 interface ShipDetailProps {
   ship: Ship;
@@ -13,40 +21,6 @@ interface ShipDetailProps {
   onReserveShip: (ship: Ship) => void;
   onRequestTechSheet: (ship: Ship) => void;
 }
-
-const badgeColors: Record<string, string> = {
-  LIMITED: 'border-amber-ui/60 bg-amber-ui/18 text-amber-ui',
-  PROTOTYPE: 'border-cyan-holo/60 bg-cyan-holo/18 text-cyan-holo',
-  CERTIFIED: 'border-text-light/45 bg-text-light/10 text-text-light',
-  'NEW DROP': 'border-ember-core/60 bg-ember-core/18 text-amber-ui',
-};
-
-const classLabels: Record<Ship['class'], string> = {
-  'Solo Pod': 'Соло-под',
-  'Duo Skiff': 'Дуо-скифф',
-  'Tri Cabin': 'Три-кабина',
-  'Quad Shuttle': 'Квадро-шаттл',
-};
-
-const availabilityLabels: Record<Ship['availability'], string> = {
-  'In Stock': 'В наличии',
-  Limited: 'Ограниченно',
-  Prototype: 'Прототип',
-  'On Request': 'Под заказ',
-};
-
-const trimLabels: Record<Ship['trims'][number]['name'], string> = {
-  Standard: 'Базовая',
-  Executive: 'Премиум',
-  Expedition: 'Экспедиция',
-};
-
-const badgeLabels: Record<Ship['badges'][number], string> = {
-  LIMITED: 'Лимит',
-  PROTOTYPE: 'Прототип',
-  CERTIFIED: 'Проверено',
-  'NEW DROP': 'Новый дроп',
-};
 
 const noiseLabels: Record<Ship['specs']['noise'], string> = {
   Whisper: 'Whisper-контур',
@@ -78,7 +52,14 @@ export default function ShipDetail({
   onReserveShip,
   onRequestTechSheet,
 }: ShipDetailProps) {
+  const dialogRef = useRef<HTMLDivElement | null>(null);
   const [activeImage, setActiveImage] = useState(0);
+
+  useDialogFocusTrap({
+    isOpen: true,
+    containerRef: dialogRef,
+    onClose,
+  });
 
   useEffect(() => {
     setActiveImage(0);
@@ -149,7 +130,12 @@ export default function ShipDetail({
 
   return (
     <div
+      ref={dialogRef}
       className="fixed inset-0 z-[70] overflow-y-auto overscroll-contain bg-dark-navy/92 backdrop-blur-md"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="ship-detail-title"
+      tabIndex={-1}
       onClick={(event) => {
         if (event.target === event.currentTarget) {
           onClose();
@@ -249,17 +235,17 @@ export default function ShipDetail({
                 {ship.badges.map((badge) => (
                   <span
                     key={badge}
-                    className={`rounded-md border px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.12em] ${badgeColors[badge]}`}
+                    className={`rounded-md border px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.12em] ${shipBadgeToneClasses[badge]}`}
                   >
-                    {badgeLabels[badge]}
+                    {shipBadgeLabels[badge]}
                   </span>
                 ))}
               </div>
 
-              <h1 className="heading-lg text-text-light">{ship.name}</h1>
-              <p className="mt-2 font-rajdhani text-xl text-text-light/75">
-                {classLabels[ship.class]} / Экипаж {ship.crewMin}-{ship.crewMax}
-              </p>
+              <h1 id="ship-detail-title" className="heading-lg text-text-light">
+                {ship.name}
+              </h1>
+              <p className="mt-2 font-rajdhani text-xl text-text-light/75">{formatShipClassCrew(ship)}</p>
               <p className="mt-4 font-rajdhani text-lg leading-relaxed text-text-light/72">{extendedStory}</p>
               <p className="mt-3 rounded-lg border border-cyan-holo/25 bg-dark-navy/35 p-3 font-rajdhani text-base text-text-light/70">
                 {missionProfile}
@@ -281,7 +267,7 @@ export default function ShipDetail({
                   <p className="font-orbitron text-3xl tracking-[0.08em] text-amber-ui">${(ship.priceUsd / 1000).toFixed(0)}K</p>
                 </div>
                 <span className={`font-mono text-sm uppercase tracking-[0.12em] ${availabilityClass}`}>
-                  {availabilityLabels[ship.availability]}
+                  {shipAvailabilityLabels[ship.availability]}
                 </span>
               </div>
             </section>
@@ -344,7 +330,7 @@ export default function ShipDetail({
                 {ship.trims.map((trim) => (
                   <div key={trim.name} className="rounded-lg border border-cyan-holo/25 bg-dark-navy/35 p-4">
                     <div className="mb-2 flex items-center justify-between">
-                      <h3 className="font-oxanium text-lg uppercase tracking-[0.08em] text-text-light">{trimLabels[trim.name]}</h3>
+                      <h3 className="font-oxanium text-lg uppercase tracking-[0.08em] text-text-light">{shipTrimLabels[trim.name]}</h3>
                       <p className="font-mono text-lg tracking-[0.06em] text-amber-ui">${(trim.priceUsd / 1000).toFixed(0)}K</p>
                     </div>
                     <ul className="space-y-1">

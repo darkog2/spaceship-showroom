@@ -110,7 +110,7 @@ export default function SectionOrbitNav({ sections, activeId, onJump }: Props) {
   };
 
   return (
-    <nav className="section-orbit section-orbit-enhanced" aria-label="Quick section navigation">
+    <nav className="section-orbit section-orbit-enhanced" aria-label="Быстрая навигация по разделам">
       <div className="section-orbit-shell">
         <div className="section-orbit-track">
           <span className="section-orbit-line" aria-hidden="true" />
@@ -131,7 +131,7 @@ export default function SectionOrbitNav({ sections, activeId, onJump }: Props) {
                 key={section.id}
                 type="button"
                 title={section.label}
-                aria-current={isActive ? 'true' : undefined}
+                aria-current={isActive ? 'page' : undefined}
                 onClick={() => onJump(section.id)}
                 className={`section-orbit-node${isActive ? ' is-active' : ''}`}
               >
@@ -149,7 +149,7 @@ export default function SectionOrbitNav({ sections, activeId, onJump }: Props) {
       <div className="section-orbit-arrows">
         <button
           type="button"
-          aria-label="Go to previous section"
+          aria-label="Перейти к предыдущему разделу"
           onClick={() => shift(-1)}
           disabled={!canShiftUp}
           className="section-orbit-arrow"
@@ -158,7 +158,7 @@ export default function SectionOrbitNav({ sections, activeId, onJump }: Props) {
         </button>
         <button
           type="button"
-          aria-label="Go to next section"
+          aria-label="Перейти к следующему разделу"
           onClick={() => shift(1)}
           disabled={!canShiftDown}
           className="section-orbit-arrow"

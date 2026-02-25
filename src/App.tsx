@@ -1,163 +1,43 @@
-import { useState } from 'react';
+import {
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent,
+  type WheelEvent,
+} from 'react';
 import Footer from './components/Footer';
-import { useEffect, useMemo, useRef, type ChangeEvent, type FormEvent, type MouseEvent as ReactMouseEvent, type PointerEvent, type WheelEvent } from 'react';
 import Hero from './components/Hero';
 import Navbar from './components/Navbar';
 import SectionOrbitNav from './components/SectionOrbitNav';
 import ShipCard from './components/ShipCard';
-import ShipDetail from './components/ShipDetail';
 import ShipFilter from './components/ShipFilter';
 import SkeletonImage from './components/SkeletonImage';
+import CartDrawer, { type CheckoutFormState } from './components/CartDrawer';
+import CompareModal from './components/CompareModal';
+import ManufacturerModal from './components/ManufacturerModal';
 import { Manufacturer, Ship, manufacturers, ships } from './data/ships';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  destinationHubs,
+  faqItems,
+  featuredShips,
+  loreNodes,
+  missionProfiles,
+  paymentMethods,
+  purchaseFlow,
+  quickNavSections,
+} from './constants/showroomContent';
+import { formatShipClassCrew } from './constants/shipMeta';
+import { usePrefersReducedMotion } from './hooks/usePrefersReducedMotion';
 
-const missionProfiles = [
-  {
-    title: 'Городские перелеты',
-    text: 'Для ежедневных перемещений между орбитальными платформами и мегаполисами с плотным воздушным трафиком.',
-    points: ['Быстрый запуск', 'Стабильная автопосадка', 'Тихий ход в жилых зонах', 'Приоритетные окна для служебных рейсов'],
-  },
-  {
-    title: 'Дальние экспедиции',
-    text: 'Для длительных маршрутов с повышенными требованиями к дальности, экранированию и автономности систем.',
-    points: ['Расширенная навигация', 'Защита от пылевых бурь', 'Гибкие грузовые модули', 'Стабильные каналы связи'],
-  },
-  {
-    title: 'Премиум-путешествия',
-    text: 'Для клиентов, которым важны высокий уровень комфорта, статусный дизайн и безупречная кабина управления.',
-    points: ['Люксовый интерьер', 'Персональные light-сцены', 'Консьерж-поддержка 24/7', 'Тихая кабина класса Royal'],
-  },
-];
-
-const purchaseFlow = [
-  {
-    step: '01',
-    title: 'Подбор модели',
-    text: 'Вы выбираете корабль, сравниваете характеристики и формируете запрос на нужную комплектацию.',
-  },
-  {
-    step: '02',
-    title: 'Конфигурация и проверка',
-    text: 'Инженер дока уточняет сценарий эксплуатации, подбирает пакеты и подтверждает финальную спецификацию.',
-  },
-  {
-    step: '03',
-    title: 'Контракт и логистика',
-    text: 'Подписываем контракт, резервируем окно вылета и синхронизируем доставку с выбранной станцией.',
-  },
-  {
-    step: '04',
-    title: 'Передача корабля',
-    text: 'Проводим финальную доковую проверку, обучение пилота и выдаем судно с полной документацией.',
-  },
-];
-
-const faqItems = [
-  {
-    q: 'Можно ли заказать индивидуальную комплектацию?',
-    a: 'Да. Для большинства моделей доступны пакеты Executive и Expedition, а также точечные инженерные доработки под ваш профиль миссий.',
-  },
-  {
-    q: 'Есть ли гарантия и постгарантийный сервис?',
-    a: 'Да. Базовая гарантия входит в любую покупку. Также доступны продленные сервисные контракты с удаленной диагностикой и приоритетным обслуживанием.',
-  },
-  {
-    q: 'Сколько занимает передача корабля?',
-    a: 'В среднем от 7 до 21 дня в зависимости от модели и уровня кастомизации. Прототипы и лимитированные версии могут требовать больше времени.',
-  },
-  {
-    q: 'Можно ли арендовать на длительный срок?',
-    a: 'Да, доступны лизинговые программы HelioChain и контрактные рейсы на 6-24 месяцев с последующим выкупом.',
-  },
-];
-
-const classLabels: Record<Ship['class'], string> = {
-  'Solo Pod': 'Соло-под',
-  'Duo Skiff': 'Дуо-скифф',
-  'Tri Cabin': 'Три-кабина',
-  'Quad Shuttle': 'Квадро-шаттл',
-};
-
-const availabilityLabels: Record<Ship['availability'], string> = {
-  'In Stock': 'В наличии',
-  Limited: 'Ограниченно',
-  Prototype: 'Прототип',
-  'On Request': 'Под заказ',
-};
-
-const featuredShips = [
-  {
-    id: 'helix-vx2',
-    label: 'Новый релиз',
-  },
-  {
-    id: 'vesper-x2',
-    label: 'Смена цвета',
-  },
-  {
-    id: 'anx-99-spectra',
-    label: 'Прототип',
-  },
-  {
-    id: 'ketra-x2',
-    label: 'Премиум',
-  },
-  {
-    id: 'orion-x9',
-    label: 'Легенда',
-  },
-  {
-    id: 'nyx-skiff-s2-rival',
-    label: 'Конкурент',
-  },
-  {
-    id: 'solstice-r9',
-    label: 'Флагман',
-  },
-];
-
-const loreNodes = [
-  {
-    title: 'Пакт Орбитальных Коридоров',
-    text: 'После 2138 года корпорации запустили единый торговый протокол Sol-Transit. Любой сертифицированный корабль получает доступ к быстрым коридорам между доками внутренней системы.',
-  },
-  {
-    title: 'Доковые Лицензии A-Prime',
-    text: 'Модели из каталога имеют стандарт стыковки A-Prime: это гарантирует обслуживание на Луне, Марсе, Церере и во внешних колониях.',
-  },
-  {
-    title: 'Страховой Контур Meridian',
-    text: 'Каждая покупка привязана к страховому уровню Meridian: от базового retail-coverage до исследовательских пакетов с расширенной ответственностью.',
-  },
-  {
-    title: 'Сетевой Консьерж Рояль',
-    text: 'Премиум-клиенты получают отдельный канал сопровождения: подбор маршрутов, резерв топливных окон и приоритетный допуск в частные доки.',
-  },
-];
-
-const destinationHubs = [
-  { type: 'Планета', name: 'Марс, Аркология Cydonia Prime' },
-  { type: 'Планета', name: 'Земля, Экваториальный Орбитальный Порт New Dakar' },
-  { type: 'Планета', name: 'Венера, Aerostat Harbor Vesper' },
-  { type: 'Орбитальная станция', name: 'L5 Elysium Ring Station' },
-  { type: 'Орбитальная станция', name: 'Titan Drydock Authority Gamma' },
-  { type: 'Орбитальная станция', name: 'Phobos Relay Bastion' },
-  { type: 'Заселенный спутник', name: 'Луна, Helix Valley Arcology' },
-  { type: 'Заселенный спутник', name: 'Европа, Subsurface Gate-12' },
-  { type: 'Заселенный спутник', name: 'Ганимед, Aurora Sea Habitats' },
-  { type: 'Дальний сектор', name: 'Церера, Caravan Hub North Belt' },
-  { type: 'Дальний сектор', name: 'Пояс Койпера, Frontier Habitat K-47' },
-  { type: 'Дальний сектор', name: 'Тритон, Deep Dockline N-9' },
-];
-
-const paymentMethods = [
-  'Solaris Credit Ledger',
-  'HelioChain Escrow',
-  'Titan Bond Lease',
-  'Quantum Split 24',
-  'AetherPay Fleet Transfer',
-  'Dockline Syndicate Invoice',
-];
+const ShipDetail = lazy(() => import('./components/ShipDetail'));
 
 const FEATURED_REPEAT = 5;
 const FEATURED_DEFAULT_CENTER_SHIP_ID = 'solstice-r9';
@@ -189,14 +69,6 @@ const NAV_SCROLL_OFFSET = 72;
 const QUICK_NAV_SETTLE_MS = 300;
 const MANUFACTURER_PREVIEW_LINGER_MS = 2200;
 const MANUFACTURER_PREVIEW_FADE_MS = 260;
-const quickNavSections = [
-  { id: 'home', label: 'Главная' },
-  { id: 'featured', label: 'Витрина' },
-  { id: 'catalog', label: 'Каталог' },
-  { id: 'about', label: 'Преимущества' },
-  { id: 'journey', label: 'Сценарии' },
-  { id: 'contact', label: 'Контакты' },
-] as const;
 
 type QuickNavSectionId = (typeof quickNavSections)[number]['id'];
 type QuickNavScrollLock = {
@@ -221,10 +93,11 @@ export default function App() {
   const [checkoutDoneMessage, setCheckoutDoneMessage] = useState<string | null>(null);
   const [activeManufacturer, setActiveManufacturer] = useState<Manufacturer | null>(null);
   const [activeQuickNavSection, setActiveQuickNavSection] = useState<QuickNavSectionId>('home');
+  const prefersReducedMotion = usePrefersReducedMotion();
   const [featuredArrowPulseDirection, setFeaturedArrowPulseDirection] = useState<1 | -1 | 0>(0);
   const [featuredVariantByShip, setFeaturedVariantByShip] = useState<Record<string, number>>({});
   const [manufacturerChipPreview, setManufacturerChipPreview] = useState<ManufacturerChipPreview | null>(null);
-  const [checkoutForm, setCheckoutForm] = useState({
+  const [checkoutForm, setCheckoutForm] = useState<CheckoutFormState>({
     destinationType: destinationHubs[0].type,
     destinationName: destinationHubs[0].name,
     recipient: '',
@@ -250,6 +123,7 @@ export default function App() {
     lastY: 0,
     lastTime: 0,
     velocity: 0,
+    clickedArticle: null as HTMLElement | null,
   });
   const featuredInertiaRef = useRef<number | null>(null);
   const featuredGlideRef = useRef<number | null>(null);
@@ -296,8 +170,18 @@ export default function App() {
   const manufacturerPreviewHoldRef = useRef<number | null>(null);
   const manufacturerPreviewFadeRef = useRef<number | null>(null);
 
-  const getManufacturer = (manufacturerId: string) =>
-    manufacturers.find((manufacturer) => manufacturer.id === manufacturerId);
+  const manufacturerById = useMemo(
+    () =>
+      manufacturers.reduce<Record<string, Manufacturer>>((accumulator, manufacturer) => {
+        accumulator[manufacturer.id] = manufacturer;
+        return accumulator;
+      }, {}),
+    [],
+  );
+  const getManufacturer = useCallback(
+    (manufacturerId: string) => manufacturerById[manufacturerId],
+    [manufacturerById],
+  );
 
   const shipsByManufacturer = useMemo(() => {
     const grouped: Record<string, Ship[]> = {};
@@ -316,11 +200,13 @@ export default function App() {
 
   const manufacturerFocus = useMemo(
     () => (manufacturerFocusId ? getManufacturer(manufacturerFocusId) ?? null : null),
-    [manufacturerFocusId],
+    [getManufacturer, manufacturerFocusId],
   );
 
   const visibleShipPool = displayedShips.length > 0 ? displayedShips : ships;
   const cartTotal = useMemo(() => cart.reduce((sum, item) => sum + item.priceUsd, 0), [cart]);
+  const compareIds = useMemo(() => new Set(compareList.map((item) => item.id)), [compareList]);
+  const cartIds = useMemo(() => new Set(cart.map((item) => item.id)), [cart]);
 
   const availableDestinations = useMemo(
     () => destinationHubs.filter((hub) => hub.type === checkoutForm.destinationType),
@@ -328,7 +214,7 @@ export default function App() {
   );
   const overlayOpen = Boolean(selectedShip || cartOpen || compareOpen || activeManufacturer);
 
-  const flashNotice = (message: string) => {
+  const flashNotice = useCallback((message: string) => {
     if (noticeTimeoutRef.current !== null) {
       clearTimeout(noticeTimeoutRef.current);
     }
@@ -337,7 +223,7 @@ export default function App() {
       setUiNotice(null);
       noticeTimeoutRef.current = null;
     }, 2200);
-  };
+  }, []);
 
   const smoothScrollToY = (targetTop: number, durationHint = 320, onComplete?: () => void) => {
     const html = document.documentElement;
@@ -360,7 +246,7 @@ export default function App() {
       return 0;
     }
 
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (prefersReducedMotion) {
       const prevBehavior = html.style.scrollBehavior;
       html.style.scrollBehavior = 'auto';
       window.scrollTo(0, target);
@@ -471,6 +357,9 @@ export default function App() {
   };
 
   const applyCardTilt = (element: HTMLElement, clientX: number, clientY: number, intensity = 1) => {
+    if (prefersReducedMotion) {
+      return;
+    }
     const rect = element.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) {
       return;
@@ -503,6 +392,9 @@ export default function App() {
   };
 
   const applyHoverTilt = (element: HTMLElement, event: globalThis.PointerEvent) => {
+    if (prefersReducedMotion) {
+      return;
+    }
     const isButton = element.tagName === 'BUTTON';
     const intensity = isButton ? 0.55 : 0.85;
     applyCardTilt(element, event.clientX, event.clientY, intensity);
@@ -1046,10 +938,8 @@ export default function App() {
       lastY: event.clientY,
       lastTime: performance.now(),
       velocity: 0,
+      clickedArticle: target.closest('article'),
     };
-    // Сохраняем целевую карточку для клика
-    const articleElement = target.closest('article');
-    (featuredDragRef.current as any).clickedArticle = articleElement;
   };
 
   const onFeaturedPointerMove = (event: PointerEvent<HTMLDivElement>) => {
@@ -1100,7 +990,7 @@ export default function App() {
     
     // Если это был клик, а не перетаскивание, то открываем карточку
     if (!wasMoved) {
-      const clickedArticle = (drag as any).clickedArticle as HTMLElement | undefined;
+      const clickedArticle = drag.clickedArticle;
       if (clickedArticle) {
         // Извлекаем ship ID из атрибута data-ship-id
         const shipId = clickedArticle.getAttribute('data-ship-id');
@@ -1125,6 +1015,7 @@ export default function App() {
       drag.velocity = 0;
       setFeaturedPlasma(0);
     }
+    drag.clickedArticle = null;
     scheduleFeaturedDockToCenter(FEATURED_DOCK_IDLE_MS + 40);
   };
 
@@ -1576,6 +1467,10 @@ export default function App() {
   }, [activeManufacturer, cartOpen, compareOpen, manufacturerFocusId, selectedShip, visibleShipPool]);
 
   useEffect(() => {
+    if (prefersReducedMotion) {
+      return;
+    }
+
     const onPointerMove = (event: globalThis.PointerEvent) => {
       if (event.pointerType === 'touch') {
         return;
@@ -1631,7 +1526,7 @@ export default function App() {
       document.removeEventListener('pointermove', onPointerMove);
       document.removeEventListener('pointerleave', onPointerLeave);
     };
-  }, []);
+  }, [prefersReducedMotion]);
 
   useEffect(() => {
     if (!overlayOpen) {
@@ -1780,97 +1675,119 @@ export default function App() {
     };
   }, []);
 
-  const handleFilter = (filteredShips: Ship[]) => {
-    setFilteredShips(filteredShips);
-  };
+  const handleFilter = useCallback((nextShips: Ship[]) => {
+    setFilteredShips(nextShips);
+  }, []);
 
-  const toggleCompare = (ship: Ship) => {
-    const exists = compareList.some((item) => item.id === ship.id);
-    if (exists) {
-      setCompareList((prev) => prev.filter((item) => item.id !== ship.id));
-      flashNotice(`${ship.name} убран из сравнения`);
-      return;
-    }
-    if (compareList.length >= 3) {
-      flashNotice('Можно сравнить не более 3 кораблей');
-      return;
-    }
-    setCompareList((prev) => [...prev, ship]);
-    flashNotice(`${ship.name} добавлен в сравнение`);
-  };
+  const toggleCompare = useCallback(
+    (ship: Ship) => {
+      setCompareList((prev) => {
+        const exists = prev.some((item) => item.id === ship.id);
+        if (exists) {
+          flashNotice(`${ship.name} убран из сравнения`);
+          return prev.filter((item) => item.id !== ship.id);
+        }
+        if (prev.length >= 3) {
+          flashNotice('Можно сравнить не более 3 кораблей');
+          return prev;
+        }
+        flashNotice(`${ship.name} добавлен в сравнение`);
+        return [...prev, ship];
+      });
+    },
+    [flashNotice],
+  );
 
-  const addToCart = (ship: Ship) => {
-    const exists = cart.some((item) => item.id === ship.id);
-    if (!exists) {
-      setCart((prev) => [...prev, ship]);
-    }
-    setCartOpen(true);
-    flashNotice(exists ? `${ship.name} уже в корзине` : `${ship.name} добавлен в корзину`);
-  };
+  const addToCart = useCallback(
+    (ship: Ship) => {
+      const exists = cartIds.has(ship.id);
+      if (!exists) {
+        setCart((prev) => [...prev, ship]);
+      }
+      setCartOpen(true);
+      flashNotice(exists ? `${ship.name} уже в корзине` : `${ship.name} добавлен в корзину`);
+    },
+    [cartIds, flashNotice],
+  );
 
-  const removeFromCart = (id: string) => {
+  const removeFromCart = useCallback((id: string) => {
     setCart((prev) => prev.filter((item) => item.id !== id));
-  };
+  }, []);
 
-  const removeFromCompare = (id: string) => {
+  const removeFromCompare = useCallback((id: string) => {
     setCompareList((prev) => prev.filter((item) => item.id !== id));
-  };
+  }, []);
 
-  const onCheckoutFieldChange =
-    (field: keyof typeof checkoutForm) =>
-    (event: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-      const value = event.target.value;
-      setCheckoutForm((prev) => {
-        if (field === 'destinationType') {
-          const firstForType = destinationHubs.find((hub) => hub.type === value);
+  const onCheckoutFieldChange = useCallback(
+    (field: keyof CheckoutFormState) =>
+      (event: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+        const value = event.target.value;
+        setCheckoutForm((prev) => {
+          if (field === 'destinationType') {
+            const firstForType = destinationHubs.find((hub) => hub.type === value);
+            return {
+              ...prev,
+              destinationType: value,
+              destinationName: firstForType?.name ?? prev.destinationName,
+            };
+          }
           return {
             ...prev,
-            destinationType: value,
-            destinationName: firstForType?.name ?? prev.destinationName,
+            [field]: value,
           };
-        }
-        return {
-          ...prev,
-          [field]: value,
-        };
-      });
-    };
+        });
+      },
+    [],
+  );
 
-  const submitCheckout = (event: FormEvent) => {
-    event.preventDefault();
-    if (cart.length === 0) {
-      flashNotice('Корзина пуста: добавьте хотя бы один корабль.');
-      return;
-    }
-    setCheckoutDoneMessage(
-      `Заказ принят: ${checkoutForm.destinationName}. Менеджер отправит контракт в канал ${checkoutForm.comms || 'личный dock-канал'}.`,
-    );
-    setCart([]);
-    setCompareList([]);
-    setCartOpen(false);
-  };
+  const submitCheckout = useCallback(
+    (event: FormEvent) => {
+      event.preventDefault();
+      if (cart.length === 0) {
+        flashNotice('Корзина пуста: добавьте хотя бы один корабль.');
+        return;
+      }
+      setCheckoutDoneMessage(
+        `Заказ принят: ${checkoutForm.destinationName}. Менеджер отправит контракт в канал ${checkoutForm.comms || 'личный dock-канал'}.`,
+      );
+      setCart([]);
+      setCompareList([]);
+      setCartOpen(false);
+    },
+    [cart.length, checkoutForm.comms, checkoutForm.destinationName, flashNotice],
+  );
 
-  const reserveShip = (ship: Ship) => {
-    addToCart(ship);
-    flashNotice(`Резерв оформлен: ${ship.name}`);
-  };
+  const reserveShip = useCallback(
+    (ship: Ship) => {
+      addToCart(ship);
+      flashNotice(`Резерв оформлен: ${ship.name}`);
+    },
+    [addToCart, flashNotice],
+  );
 
-  const requestTechSheet = (ship: Ship) => {
-    flashNotice(`Полное ТЗ по ${ship.name} отправлено в контактный центр.`);
-    setSelectedShip(null);
-    const contact = document.getElementById('contact');
-    if (contact) {
-      const top = contact.getBoundingClientRect().top + window.scrollY - NAV_SCROLL_OFFSET;
-      smoothScrollToY(top, 320);
-    }
-  };
+  const requestTechSheet = useCallback(
+    (ship: Ship) => {
+      flashNotice(`Полное ТЗ по ${ship.name} отправлено в контактный центр.`);
+      setSelectedShip(null);
+      const contact = document.getElementById('contact');
+      if (contact) {
+        const top = contact.getBoundingClientRect().top + window.scrollY - NAV_SCROLL_OFFSET;
+        smoothScrollToY(top, 320);
+      }
+    },
+    [flashNotice],
+  );
 
-  const featuredCards = featuredShips
-    .map((entry) => ({
-      entry,
-      ship: ships.find((ship) => ship.id === entry.id),
-    }))
-    .filter((item): item is { entry: typeof featuredShips[number]; ship: Ship } => Boolean(item.ship));
+  const featuredCards = useMemo(
+    () =>
+      featuredShips
+        .map((entry) => ({
+          entry,
+          ship: ships.find((ship) => ship.id === entry.id),
+        }))
+        .filter((item): item is { entry: (typeof featuredShips)[number]; ship: Ship } => Boolean(item.ship)),
+    [],
+  );
 
   const featuredLoopCards = useMemo(
     () =>
@@ -1925,7 +1842,10 @@ export default function App() {
           <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mb-6 flex items-end justify-between gap-4">
               <div>
-                <h2 className="heading-lg">Лучшие предложения</h2>
+                <h2 className="heading-lg">Хиты витрины: готовы к вылету</h2>
+                <p className="mt-2 max-w-2xl font-rajdhani text-lg text-text-light/72">
+                  Быстрый путь к решению: открыть карточку, сравнить и сразу отправить в корзину.
+                </p>
               </div>
             </div>
             <div className="featured-orbit-glow relative space-bg p-3 sm:p-4">
@@ -1974,7 +1894,7 @@ export default function App() {
                 {featuredLoopCards.map(({ key, entry, ship }) => {
                   const activeVariant = Math.min(ship.images.length - 1, featuredVariantByShip[ship.id] ?? 0);
                   const featuredImage = ship.images[activeVariant] ?? ship.images[0];
-                  const isCompared = compareList.some((item) => item.id === ship.id);
+                  const isCompared = compareIds.has(ship.id);
                   const compactDescription =
                     ship.description.length > 92 ? `${ship.description.slice(0, 89).trimEnd()}...` : ship.description;
 
@@ -1984,8 +1904,21 @@ export default function App() {
                       data-ship-id={ship.id}
                       data-featured-loop-card="true"
                       className="panel-shell card-tilt-reactive min-w-[288px] cursor-pointer p-4 transition duration-300 sm:min-w-[330px]"
+                      onClick={() => setSelectedShip(ship)}
                       onMouseMove={onFeaturedCardMouseMove}
                       onMouseLeave={onFeaturedCardMouseLeave}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Открыть карточку ${ship.name}`}
+                      onKeyDown={(event) => {
+                        if (event.target !== event.currentTarget) {
+                          return;
+                        }
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          setSelectedShip(ship);
+                        }
+                      }}
                     >
                       <div className="zoomable relative h-44 overflow-hidden rounded-xl">
                         <SkeletonImage src={featuredImage} alt={ship.name} className="h-full w-full object-cover" draggable={false} loading="lazy" />
@@ -2020,9 +1953,7 @@ export default function App() {
                           )}
                         </div>
                         <h3 className="mt-2 font-orbitron text-2xl uppercase tracking-[0.08em] text-text-light">{ship.name}</h3>
-                        <p className="mt-1 font-rajdhani text-sm text-text-light/70">
-                          {classLabels[ship.class]} / Экипаж {ship.crewMin}-{ship.crewMax}
-                        </p>
+                        <p className="mt-1 font-rajdhani text-sm text-text-light/70">{formatShipClassCrew(ship)}</p>
                         <div className="ship-copy-box mt-2 px-2.5 py-1.5">
                           <p className="ship-copy-text ship-copy-text-compact">{compactDescription}</p>
                         </div>
@@ -2040,6 +1971,7 @@ export default function App() {
                                 event.stopPropagation();
                                 toggleCompare(ship);
                               }}
+                              aria-pressed={isCompared}
                             >
                               {isCompared ? 'В сравнении' : 'Сравнить'}
                             </button>
@@ -2084,10 +2016,9 @@ export default function App() {
               </div>
 
               <div className="mb-8 sm:mb-10">
-                <h2 className="heading-lg text-text-light">Доступные корабли</h2>
+                <h2 className="heading-lg text-text-light">Подберите модель под вашу миссию</h2>
                 <p className="soft-copy mt-3 max-w-3xl font-rajdhani text-xl leading-relaxed">
-                  Погружайтесь в карточки, сравнивайте ключевые параметры и мгновенно переходите к детальным
-                  характеристикам, уникальным возможностям и эксклюзивным комплектациям.
+                  Используйте фильтры и сравнение, чтобы за 2-3 шага выбрать корабль по дальности, экипажу и бюджету.
                 </p>
               </div>
 
@@ -2123,7 +2054,7 @@ export default function App() {
                       onCompare={toggleCompare}
                       onAddToCart={addToCart}
                       onManufacturerClick={(id) => focusManufacturer(id)}
-                      isCompared={compareList.some((item) => item.id === ship.id)}
+                      isCompared={compareIds.has(ship.id)}
                       manufacturer={getManufacturer(ship.manufacturerId)}
                     />
                   ))}
@@ -2191,7 +2122,7 @@ export default function App() {
             <div className="mb-8 sm:mb-10">
               <h2 className="heading-lg text-text-light">Корпорации и верфи - легендарные создатели</h2>
               <p className="soft-copy mt-3 max-w-3xl font-rajdhani text-xl leading-relaxed">
-                Нажмите на корпорацию, чтобы открыть профиль верфи и увидеть, какие серии она выпускает в этом сезоне.
+                Откройте профиль верфи, оцените специализацию бренда и быстро перейдите к его моделям в каталоге.
               </p>
             </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -2327,7 +2258,7 @@ export default function App() {
         <section id="contact" className="pb-16 pt-10 sm:pb-20 sm:pt-14">
           <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
             <div className="mb-8 text-center">
-              <h2 className="heading-lg text-text-light">Оставить заявку</h2>
+              <h2 className="heading-lg text-text-light">Получить персональное предложение</h2>
             </div>
 
             <div className="grid grid-cols-1 gap-5 lg:grid-cols-5">
@@ -2342,17 +2273,22 @@ export default function App() {
                     <input
                       type="text"
                       placeholder="Ваше имя"
+                      aria-label="Ваше имя"
+                      required
                       className="rounded-lg border border-cyan-holo/30 bg-dark-navy/45 px-4 py-3 font-rajdhani text-lg text-text-light placeholder:text-text-light/35 focus:border-amber-ui/55 focus:outline-none"
                     />
                     <input
                       type="email"
                       placeholder="Email"
+                      aria-label="Email"
+                      required
                       className="rounded-lg border border-cyan-holo/30 bg-dark-navy/45 px-4 py-3 font-rajdhani text-lg text-text-light placeholder:text-text-light/35 focus:border-amber-ui/55 focus:outline-none"
                     />
                   </div>
 
                   <select
                     defaultValue=""
+                    aria-label="Выберите модель корабля"
                     className="w-full rounded-lg border border-cyan-holo/30 bg-dark-navy/45 px-4 py-3 font-rajdhani text-lg text-text-light focus:border-amber-ui/55 focus:outline-none"
                   >
                     <option value="" disabled>
@@ -2368,6 +2304,7 @@ export default function App() {
                   <textarea
                     rows={5}
                     placeholder="Опишите задачу, маршрут и желаемую комплектацию..."
+                    aria-label="Описание задачи"
                     className="w-full resize-none rounded-lg border border-cyan-holo/30 bg-dark-navy/45 px-4 py-3 font-rajdhani text-lg text-text-light placeholder:text-text-light/35 focus:border-amber-ui/55 focus:outline-none"
                   />
 
@@ -2420,9 +2357,7 @@ export default function App() {
           </div>
           <div className="manufacturer-chip-preview-content">
             <p className="manufacturer-chip-preview-name">{manufacturerChipPreview.ship.name}</p>
-            <p className="manufacturer-chip-preview-meta">
-              {classLabels[manufacturerChipPreview.ship.class]} / {manufacturerChipPreview.ship.crewMin}-{manufacturerChipPreview.ship.crewMax}
-            </p>
+            <p className="manufacturer-chip-preview-meta">{formatShipClassCrew(manufacturerChipPreview.ship)}</p>
             <p className="manufacturer-chip-preview-price">${(manufacturerChipPreview.ship.priceUsd / 1000).toFixed(0)}K</p>
           </div>
         </button>
@@ -2439,16 +2374,26 @@ export default function App() {
       <Footer />
 
       {selectedShip && (
-        <ShipDetail
-          ship={selectedShip}
-          onClose={() => setSelectedShip(null)}
-          manufacturer={getManufacturer(selectedShip.manufacturerId)}
-          onManufacturerClick={(id) => focusManufacturer(id)}
-          onPrevShip={() => navigateSelectedShip(-1)}
-          onNextShip={() => navigateSelectedShip(1)}
-          onReserveShip={reserveShip}
-          onRequestTechSheet={requestTechSheet}
-        />
+        <Suspense
+          fallback={
+            <div className="fixed inset-0 z-[70] grid place-items-center bg-dark-navy/92 backdrop-blur-md">
+              <div className="rounded-xl border border-cyan-holo/35 bg-dark-navy/80 px-4 py-3 font-rajdhani text-lg text-text-light/80">
+                Загружаем карточку...
+              </div>
+            </div>
+          }
+        >
+          <ShipDetail
+            ship={selectedShip}
+            onClose={() => setSelectedShip(null)}
+            manufacturer={getManufacturer(selectedShip.manufacturerId)}
+            onManufacturerClick={(id) => focusManufacturer(id)}
+            onPrevShip={() => navigateSelectedShip(-1)}
+            onNextShip={() => navigateSelectedShip(1)}
+            onReserveShip={reserveShip}
+            onRequestTechSheet={requestTechSheet}
+          />
+        </Suspense>
       )}
 
       <div className="fixed bottom-6 right-6 z-[65] flex flex-col gap-3">
@@ -2456,6 +2401,7 @@ export default function App() {
           type="button"
           onClick={() => setCartOpen(true)}
           className="rounded-xl border border-amber-ui/45 bg-dark-navy/70 px-4 py-2 font-orbitron text-xs uppercase tracking-[0.14em] text-amber-ui backdrop-blur-xl transition hover:border-amber-ui/70 hover:bg-dark-navy"
+          aria-label={`Открыть корзину, ${cart.length} позиций`}
         >
           Корзина ({cart.length})
         </button>
@@ -2463,226 +2409,55 @@ export default function App() {
           type="button"
           onClick={() => setCompareOpen(true)}
           className="rounded-xl border border-cyan-holo/40 bg-dark-navy/70 px-4 py-2 font-orbitron text-xs uppercase tracking-[0.14em] text-cyan-holo backdrop-blur-xl transition hover:border-cyan-holo/70 hover:bg-dark-navy"
+          aria-label={`Открыть сравнение, ${compareList.length} моделей`}
         >
           Сравнить ({compareList.length})
         </button>
       </div>
 
       {cartOpen && (
-        <div className="fixed inset-0 z-[76] bg-dark-navy/75 backdrop-blur-md" onClick={() => setCartOpen(false)}>
-          <aside
-            className="ml-auto h-full w-full max-w-[560px] overflow-y-auto border-l border-cyan-holo/25 bg-dark-navy/95 p-5 sm:p-6"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="mb-5 flex items-center justify-between">
-              <div>
-                <p className="font-mono text-xs uppercase tracking-[0.14em] text-cyan-holo">Checkout Dock</p>
-                <h3 className="mt-1 font-orbitron text-2xl uppercase text-text-light">Корзина и доставка</h3>
-              </div>
-              <button
-                type="button"
-                className="rounded-md border border-cyan-holo/35 px-3 py-1 font-mono text-xs uppercase tracking-[0.12em] text-cyan-holo"
-                onClick={() => setCartOpen(false)}
-              >
-                Закрыть
-              </button>
-            </div>
-
-            <div className="panel-shell p-4">
-              <div className="flex items-center justify-between">
-                <p className="font-orbitron text-sm uppercase tracking-[0.12em] text-amber-ui">Текущие позиции</p>
-                <p className="font-mono text-xs uppercase tracking-[0.12em] text-text-light/60">{cart.length} шт</p>
-              </div>
-              {cart.length === 0 ? (
-                <p className="mt-3 font-rajdhani text-base text-text-light/65">Корзина пустая. Добавьте корабли из каталога.</p>
-              ) : (
-                <div className="mt-3 space-y-3">
-                  {cart.map((item) => (
-                    <div key={item.id} className="rounded-lg border border-cyan-holo/20 bg-dark-navy/45 p-3">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-rajdhani text-lg text-text-light">{item.name}</p>
-                          <p className="font-mono text-xs uppercase tracking-[0.1em] text-text-light/50">
-                            {availabilityLabels[item.availability]}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          className="rounded border border-amber-ui/45 px-2 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-amber-ui"
-                          onClick={() => removeFromCart(item.id)}
-                        >
-                          Удалить
-                        </button>
-                      </div>
-                      <p className="mt-2 font-orbitron text-xl text-amber-ui">${(item.priceUsd / 1000).toFixed(0)}K</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <div className="mt-4 flex items-center justify-between border-t border-cyan-holo/20 pt-3">
-                <p className="font-mono text-xs uppercase tracking-[0.14em] text-text-light/55">Итого</p>
-                <p className="font-orbitron text-2xl text-amber-ui">${(cartTotal / 1000).toFixed(0)}K</p>
-              </div>
-            </div>
-
-            <form className="mt-5 space-y-4" onSubmit={submitCheckout}>
-              <div className="panel-shell p-4">
-                <p className="font-orbitron text-sm uppercase tracking-[0.12em] text-cyan-holo">Куда доставить</p>
-                <div className="mt-3 grid grid-cols-1 gap-3">
-                  <select
-                    value={checkoutForm.destinationType}
-                    onChange={onCheckoutFieldChange('destinationType')}
-                    className="rounded-lg border border-cyan-holo/30 bg-dark-navy/45 px-3 py-2 font-rajdhani text-lg text-text-light focus:border-amber-ui/55 focus:outline-none"
-                  >
-                    {Array.from(new Set(destinationHubs.map((hub) => hub.type))).map((type) => (
-                      <option key={type} value={type} className="bg-panel-dark text-text-light">
-                        {type}
-                      </option>
-                    ))}
-                  </select>
-
-                  <select
-                    value={checkoutForm.destinationName}
-                    onChange={onCheckoutFieldChange('destinationName')}
-                    className="rounded-lg border border-cyan-holo/30 bg-dark-navy/45 px-3 py-2 font-rajdhani text-lg text-text-light focus:border-amber-ui/55 focus:outline-none"
-                  >
-                    {availableDestinations.map((hub) => (
-                      <option key={hub.name} value={hub.name} className="bg-panel-dark text-text-light">
-                        {hub.name}
-                      </option>
-                    ))}
-                  </select>
-
-                  <select
-                    value={checkoutForm.deliverySlot}
-                    onChange={onCheckoutFieldChange('deliverySlot')}
-                    className="rounded-lg border border-cyan-holo/30 bg-dark-navy/45 px-3 py-2 font-rajdhani text-lg text-text-light focus:border-amber-ui/55 focus:outline-none"
-                  >
-                    <option value="Ближайшее окно">Ближайшее окно</option>
-                    <option value="Премиум быстрый коридор">Премиум быстрый коридор</option>
-                    <option value="Ночная скрытая поставка">Ночная скрытая поставка</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="panel-shell p-4">
-                <p className="font-orbitron text-sm uppercase tracking-[0.12em] text-cyan-holo">Канал оплаты и контакт</p>
-                <div className="mt-3 grid grid-cols-1 gap-3">
-                  <select
-                    value={checkoutForm.paymentMethod}
-                    onChange={onCheckoutFieldChange('paymentMethod')}
-                    className="rounded-lg border border-cyan-holo/30 bg-dark-navy/45 px-3 py-2 font-rajdhani text-lg text-text-light focus:border-amber-ui/55 focus:outline-none"
-                  >
-                    {paymentMethods.map((method) => (
-                      <option key={method} value={method} className="bg-panel-dark text-text-light">
-                        {method}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    value={checkoutForm.recipient}
-                    onChange={onCheckoutFieldChange('recipient')}
-                    placeholder="Получатель / капитан экипажа"
-                    className="rounded-lg border border-cyan-holo/30 bg-dark-navy/45 px-3 py-2 font-rajdhani text-lg text-text-light placeholder:text-text-light/35 focus:border-amber-ui/55 focus:outline-none"
-                  />
-                  <input
-                    value={checkoutForm.comms}
-                    onChange={onCheckoutFieldChange('comms')}
-                    placeholder="Контактный канал (dock-id, comm-link)"
-                    className="rounded-lg border border-cyan-holo/30 bg-dark-navy/45 px-3 py-2 font-rajdhani text-lg text-text-light placeholder:text-text-light/35 focus:border-amber-ui/55 focus:outline-none"
-                  />
-                  <textarea
-                    rows={3}
-                    value={checkoutForm.notes}
-                    onChange={onCheckoutFieldChange('notes')}
-                    placeholder="Комментарий к доставке и передаче корабля"
-                    className="rounded-lg border border-cyan-holo/30 bg-dark-navy/45 px-3 py-2 font-rajdhani text-lg text-text-light placeholder:text-text-light/35 focus:border-amber-ui/55 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <button type="submit" className="btn-primary w-full" disabled={cart.length === 0}>
-                ОФОРМИТЬ ДОСТАВКУ И ОПЛАТУ
-              </button>
-            </form>
-          </aside>
-        </div>
+        <CartDrawer
+          cart={cart}
+          cartTotal={cartTotal}
+          checkoutForm={checkoutForm}
+          destinationHubs={destinationHubs}
+          availableDestinations={availableDestinations}
+          paymentMethods={paymentMethods}
+          onClose={() => setCartOpen(false)}
+          onRemoveFromCart={removeFromCart}
+          onSubmitCheckout={submitCheckout}
+          onCheckoutFieldChange={onCheckoutFieldChange}
+        />
       )}
 
       {compareOpen && (
-        <div className="fixed inset-0 z-[74] bg-dark-navy/70 backdrop-blur-sm" onClick={() => setCompareOpen(false)}>
-          <aside
-            className="mx-auto mt-20 w-[min(980px,96vw)] rounded-2xl border border-cyan-holo/25 bg-dark-navy/95 p-5 sm:p-6"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="font-orbitron text-xl uppercase tracking-[0.1em] text-text-light">Сравнение моделей</h3>
-              <button
-                type="button"
-                onClick={() => setCompareOpen(false)}
-                className="rounded-md border border-cyan-holo/35 px-3 py-1 font-mono text-xs uppercase tracking-[0.12em] text-cyan-holo"
-              >
-                Закрыть
-              </button>
-            </div>
-            {compareList.length === 0 ? (
-              <p className="font-rajdhani text-lg text-text-light/70">Список пуст. Добавьте до трёх кораблей в сравнение.</p>
-            ) : (
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                {compareList.map((item) => (
-                  <article key={item.id} className="panel-shell p-4">
-                    <div className="mb-3 overflow-hidden rounded-lg border border-cyan-holo/25 bg-dark-navy/45">
-                      <SkeletonImage
-                        src={item.images[0]}
-                        alt={item.name}
-                        className="h-24 w-full object-cover"
-                        wrapperClassName="h-24 w-full"
-                        loading="lazy"
-                        draggable={false}
-                      />
-                    </div>
-                    <h4 className="font-orbitron text-lg uppercase tracking-[0.08em] text-amber-ui">{item.name}</h4>
-                    <p className="mt-1 font-rajdhani text-sm text-text-light/65">
-                      {classLabels[item.class]} / Экипаж {item.crewMin}-{item.crewMax}
-                    </p>
-                    <div className="mt-3 space-y-1 font-rajdhani text-base text-text-light/75">
-                      <p>Дальность: {item.specs.rangeKm} км</p>
-                      <p>Скорость: {item.specs.cruiseKmS} км/с</p>
-                      <p>Подготовка: {item.specs.launchReadyMin} мин</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setCompareOpen(false);
-                        setSelectedShip(item);
-                      }}
-                      className="mt-4 rounded-md border border-amber-ui/45 px-3 py-1 font-mono text-xs uppercase tracking-[0.12em] text-amber-ui"
-                    >
-                      Открыть карточку
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => removeFromCompare(item.id)}
-                      className="mt-2 rounded-md border border-cyan-holo/35 px-3 py-1 font-mono text-xs uppercase tracking-[0.12em] text-cyan-holo"
-                    >
-                      Удалить из сравнения
-                    </button>
-                  </article>
-                ))}
-              </div>
-            )}
-          </aside>
-        </div>
+        <CompareModal
+          compareList={compareList}
+          onClose={() => setCompareOpen(false)}
+          onOpenShip={(ship) => {
+            setCompareOpen(false);
+            setSelectedShip(ship);
+          }}
+          onRemoveFromCompare={removeFromCompare}
+        />
       )}
 
       {uiNotice && (
-        <div className="fixed bottom-6 left-1/2 z-[90] -translate-x-1/2 rounded-xl border border-amber-ui/45 bg-dark-navy/85 px-4 py-2 font-rajdhani text-lg text-text-light backdrop-blur-xl">
+        <div
+          className="fixed bottom-6 left-1/2 z-[90] -translate-x-1/2 rounded-xl border border-amber-ui/45 bg-dark-navy/85 px-4 py-2 font-rajdhani text-lg text-text-light backdrop-blur-xl"
+          role="status"
+          aria-live="polite"
+        >
           {uiNotice}
         </div>
       )}
 
       {checkoutDoneMessage && (
-        <div className="fixed left-1/2 top-24 z-[85] w-[min(760px,94vw)] -translate-x-1/2 rounded-2xl border border-cyan-holo/35 bg-dark-navy/92 p-4 backdrop-blur-xl">
+        <div
+          className="fixed left-1/2 top-24 z-[85] w-[min(760px,94vw)] -translate-x-1/2 rounded-2xl border border-cyan-holo/35 bg-dark-navy/92 p-4 backdrop-blur-xl"
+          role="status"
+          aria-live="polite"
+        >
           <div className="flex items-center justify-between gap-3">
             <p className="font-rajdhani text-lg text-text-light/82">{checkoutDoneMessage}</p>
             <button
@@ -2697,61 +2472,12 @@ export default function App() {
       )}
 
       {activeManufacturer && (
-        <div
-          className="fixed inset-0 z-[80] flex items-center justify-center bg-dark-navy/70 px-4"
-          onClick={() => setActiveManufacturer(null)}
-        >
-          <div className="panel-shell max-w-xl p-6" onClick={(event) => event.stopPropagation()}>
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="font-mono text-xs uppercase tracking-[0.14em] text-cyan-holo">{activeManufacturer.short}</p>
-                <h3 className="mt-2 font-orbitron text-2xl uppercase tracking-[0.08em] text-text-light">
-                  {activeManufacturer.name}
-                </h3>
-                <p className="mt-1 font-rajdhani text-base text-amber-ui">{activeManufacturer.origin}</p>
-              </div>
-              <button
-                type="button"
-                className="rounded-md border border-cyan-holo/35 px-3 py-1 font-mono text-xs uppercase tracking-[0.12em] text-cyan-holo"
-                onClick={() => setActiveManufacturer(null)}
-              >
-                Закрыть
-              </button>
-            </div>
-            <p className="mt-4 font-rajdhani text-lg leading-relaxed text-text-light/75">{activeManufacturer.summary}</p>
-            <div className="mt-4">
-              <p className="font-mono text-xs uppercase tracking-[0.14em] text-text-light/55">Линейки в каталоге</p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {(shipsByManufacturer[activeManufacturer.id] ?? []).map((ship) => (
-                  <button
-                    key={ship.id}
-                    type="button"
-                    onClick={() => focusManufacturer(activeManufacturer.id, ship)}
-                    className="rounded-md border border-cyan-holo/30 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.1em] text-text-light/80 hover:border-amber-ui/45 hover:text-amber-ui"
-                  >
-                    {ship.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="mt-5 flex flex-wrap gap-2">
-              <button
-                type="button"
-                className="rounded-md border border-amber-ui/45 px-3 py-1 font-mono text-xs uppercase tracking-[0.12em] text-amber-ui"
-                onClick={() => focusManufacturer(activeManufacturer.id)}
-              >
-                Показать модели
-              </button>
-              <button
-                type="button"
-                className="rounded-md border border-cyan-holo/35 px-3 py-1 font-mono text-xs uppercase tracking-[0.12em] text-cyan-holo"
-                onClick={() => setActiveManufacturer(null)}
-              >
-                Закрыть
-              </button>
-            </div>
-          </div>
-        </div>
+        <ManufacturerModal
+          manufacturer={activeManufacturer}
+          ships={shipsByManufacturer[activeManufacturer.id] ?? []}
+          onClose={() => setActiveManufacturer(null)}
+          onFocusManufacturer={focusManufacturer}
+        />
       )}
     </div>
   );

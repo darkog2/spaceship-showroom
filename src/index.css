@@ -27,6 +27,12 @@ html {
   --scroll-ratio: 0;
 }
 
+:where(button, a, input, select, textarea, summary, [role="button"]):focus-visible {
+  outline: 2px solid rgba(255, 143, 31, 0.78);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px rgba(10, 8, 20, 0.82);
+}
+
 body {
   @apply bg-dark-navy text-text-light font-exo;
   min-height: 100vh;
@@ -1991,6 +1997,13 @@ main {
   box-shadow: 0 0 30px rgba(255, 121, 38, 0.48);
 }
 
+  .btn-primary:focus-visible {
+    box-shadow:
+      0 0 0 2px rgba(16, 12, 28, 0.9),
+      0 0 0 4px rgba(255, 143, 31, 0.52),
+      0 0 24px rgba(255, 121, 38, 0.48);
+  }
+
   .btn-primary:active {
     transform: translateY(0) scale(0.985);
   }
@@ -2011,6 +2024,13 @@ main {
   box-shadow: 0 0 24px rgba(169, 125, 255, 0.26);
 }
 
+  .btn-secondary:focus-visible {
+    box-shadow:
+      0 0 0 2px rgba(16, 12, 28, 0.9),
+      0 0 0 4px rgba(0, 238, 255, 0.36),
+      0 0 18px rgba(0, 238, 255, 0.34);
+  }
+
   .btn-secondary:active {
     transform: scale(0.985);
   }
@@ -2025,6 +2045,11 @@ main {
 
 /* GPU optimization: disable heavy animations for users who prefer reduced motion */
 @media (prefers-reduced-motion: reduce) {
+  body::before,
+  body::after {
+    animation: none !important;
+  }
+
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;

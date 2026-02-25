@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Menu, Rocket, X } from 'lucide-react';
+import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
 
 const navItems = [
   { label: 'Главная', id: 'home' },
@@ -12,6 +13,7 @@ export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [activeSection, setActiveSection] = useState('home');
+  const prefersReducedMotion = usePrefersReducedMotion();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 32);
@@ -42,13 +44,14 @@ export default function Navbar() {
   const handleNavClick = (id: string) => {
     const section = document.getElementById(id);
     if (section) {
-      section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      section.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'start' });
     }
     setIsOpen(false);
   };
 
   return (
     <nav
+      aria-label="Основная навигация"
       className={`fixed top-0 z-50 w-full border-b transition-all duration-300 ${
         scrolled
           ? 'border-amber-ui/40 bg-dark-navy/85 backdrop-blur-2xl shadow-[0_4px_30px_rgba(0,0,0,0.5),0_0_15px_rgba(255,80,40,0.06)]'
@@ -78,6 +81,7 @@ export default function Navbar() {
                   : 'text-text-light/85 hover:text-amber-ui'
               }`}
               type="button"
+              aria-current={activeSection === item.id ? 'page' : undefined}
             >
               {item.label}
               <span
@@ -94,13 +98,15 @@ export default function Navbar() {
           onClick={() => setIsOpen((prev) => !prev)}
           type="button"
           aria-label="Переключить меню"
+          aria-expanded={isOpen}
+          aria-controls="mobile-nav-panel"
         >
           {isOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
       </div>
 
       {isOpen && (
-        <div className="border-t border-cyan-holo/30 bg-panel-dark/95 md:hidden">
+        <div id="mobile-nav-panel" className="border-t border-cyan-holo/30 bg-panel-dark/95 md:hidden">
           <div className="space-y-1 px-3 py-3">
             {navItems.map((item) => (
               <button
@@ -112,6 +118,7 @@ export default function Navbar() {
                     : 'text-text-light/85 hover:bg-cyan-holo/10 hover:text-amber-ui'
                 }`}
                 type="button"
+                aria-current={activeSection === item.id ? 'page' : undefined}
               >
                 {item.label}
               </button>

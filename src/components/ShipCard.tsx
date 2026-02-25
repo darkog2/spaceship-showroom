@@ -3,6 +3,13 @@ import { Manufacturer, Ship } from '../data/ships';
 import { useTiltEffect } from '../hooks/useTiltEffect';
 import { useIsVisible } from '../hooks/useIsVisible';
 import SkeletonImage from './SkeletonImage';
+import {
+  formatShipClassCrew,
+  shipAvailabilityLabels,
+  shipAvailabilityToneClasses,
+  shipBadgeLabels,
+  shipBadgeToneClasses,
+} from '../constants/shipMeta';
 
 interface ShipCardProps {
   ship: Ship;
@@ -13,34 +20,6 @@ interface ShipCardProps {
   isCompared: boolean;
   manufacturer?: Manufacturer;
 }
-
-const badgeColors: Record<string, string> = {
-  LIMITED: 'badge-pulse border-amber-ui/70 bg-amber-ui/25 text-amber-ui',
-  PROTOTYPE: 'badge-pulse prototype border-cyan-holo/70 bg-cyan-holo/25 text-cyan-holo',
-  CERTIFIED: 'border-text-light/50 bg-text-light/12 text-text-light',
-  'NEW DROP': 'badge-pulse border-ember-core/70 bg-ember-core/25 text-amber-ui',
-};
-
-const classLabels: Record<Ship['class'], string> = {
-  'Solo Pod': 'Соло-под',
-  'Duo Skiff': 'Дуо-скифф',
-  'Tri Cabin': 'Три-кабина',
-  'Quad Shuttle': 'Квадро-шаттл',
-};
-
-const availabilityLabels: Record<Ship['availability'], string> = {
-  'In Stock': 'В наличии',
-  Limited: 'Ограниченно',
-  Prototype: 'Прототип',
-  'On Request': 'Под заказ',
-};
-
-const badgeLabels: Record<Ship['badges'][number], string> = {
-  LIMITED: 'Лимит',
-  PROTOTYPE: 'Прототип',
-  CERTIFIED: 'Проверено',
-  'NEW DROP': 'Новый дроп',
-};
 
 export default function ShipCard({
   ship,
@@ -55,14 +34,7 @@ export default function ShipCard({
   const { ref: visRef, isVisible } = useIsVisible();
   const { onMouseMove: onCardTiltMove, onMouseLeave: onCardTiltLeave } = useTiltEffect({ intensity: 1 });
 
-  const availabilityClass =
-    ship.availability === 'In Stock'
-      ? 'border-cyan-holo/65 bg-cyan-holo/20 text-cyan-holo'
-      : ship.availability === 'Limited'
-        ? 'border-amber-ui/65 bg-amber-ui/20 text-amber-ui'
-        : ship.availability === 'Prototype'
-          ? 'border-magenta-neon/65 bg-magenta-neon/20 text-magenta-neon'
-          : 'border-text-light/35 bg-text-light/12 text-text-light/75';
+  const availabilityClass = shipAvailabilityToneClasses[ship.availability];
 
   const image = ship.images[activeImage] ?? ship.images[0];
 
@@ -89,6 +61,18 @@ export default function ShipCard({
       onClick={() => onClick(ship)}
       onMouseMove={onCardTiltMove}
       onMouseLeave={onCardTiltLeave}
+      role="button"
+      tabIndex={0}
+      aria-label={`Открыть карточку ${ship.name}`}
+      onKeyDown={(event) => {
+        if (event.target !== event.currentTarget) {
+          return;
+        }
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onClick(ship);
+        }
+      }}
     >
       <div className="panel-shell ship-card-glow overflow-hidden p-0 transition-all duration-[400ms] group-hover:-translate-y-2">
         <div
@@ -107,21 +91,19 @@ export default function ShipCard({
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-ui/5 to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
           <div className="absolute left-3 top-3 flex flex-wrap gap-2 sm:left-4 sm:top-4">
             {ship.badges.map((badge) => (
-              <span
-                key={badge}
-                className={`rounded-md border px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.14em] ${badgeColors[badge]}`}
-              >
-                {badgeLabels[badge]}
-              </span>
-            ))}
+                <span
+                  key={badge}
+                  className={`rounded-md border px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.14em] ${shipBadgeToneClasses[badge]}`}
+                >
+                  {shipBadgeLabels[badge]}
+                </span>
+              ))}
+            </div>
+            <div className="absolute bottom-4 left-4 right-4">
+              <h3 className="font-orbitron text-xl uppercase tracking-[0.08em] text-text-light drop-shadow-lg sm:text-2xl">{ship.name}</h3>
+              <p className="font-rajdhani text-base text-text-light/80 drop-shadow-md">{formatShipClassCrew(ship)}</p>
+            </div>
           </div>
-          <div className="absolute bottom-4 left-4 right-4">
-            <h3 className="font-orbitron text-xl uppercase tracking-[0.08em] text-text-light drop-shadow-lg sm:text-2xl">{ship.name}</h3>
-            <p className="font-rajdhani text-base text-text-light/80 drop-shadow-md">
-              {classLabels[ship.class]} / Экипаж {ship.crewMin}-{ship.crewMax}
-            </p>
-          </div>
-        </div>
 
         <div className="flex items-center justify-between border-t border-cyan-holo/30 px-4 py-3 backdrop-blur-sm">
           <div className="grid grid-cols-3 gap-4">
@@ -191,20 +173,21 @@ export default function ShipCard({
             <span
               className={`w-full rounded-md border px-3 py-1.5 text-center font-mono text-[11px] uppercase tracking-[0.12em] shadow-md ${availabilityClass}`}
             >
-              {availabilityLabels[ship.availability]}
+              {shipAvailabilityLabels[ship.availability]}
             </span>
             <div className="flex flex-col items-stretch gap-1.5">
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onCompare(ship);
-                }}
-                className={`w-full rounded-md border px-3 py-1.5 text-center font-mono text-[10px] uppercase tracking-[0.14em] transition ${
-                  isCompared
-                    ? 'border-amber-ui/70 bg-amber-ui/25 text-amber-ui shadow-[0_0_16px_rgba(255,80,40,0.5)]'
-                    : 'border-cyan-holo/45 text-cyan-holo hover:border-cyan-holo/80 hover:text-cyan-holo hover:shadow-[0_0_16px_rgba(0,238,255,0.4)]'
-                }`}
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onCompare(ship);
+                  }}
+                  aria-pressed={isCompared}
+                  className={`w-full rounded-md border px-3 py-1.5 text-center font-mono text-[10px] uppercase tracking-[0.14em] transition ${
+                    isCompared
+                      ? 'border-amber-ui/70 bg-amber-ui/25 text-amber-ui shadow-[0_0_16px_rgba(255,80,40,0.5)]'
+                      : 'border-cyan-holo/45 text-cyan-holo hover:border-cyan-holo/80 hover:text-cyan-holo hover:shadow-[0_0_16px_rgba(0,238,255,0.4)]'
+                  }`}
               >
                 {isCompared ? 'В сравнении' : 'Сравнить'}
               </button>

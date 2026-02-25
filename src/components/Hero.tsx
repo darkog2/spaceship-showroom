@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { ArrowDownRight, Sparkles } from 'lucide-react';
 import { Ship, ships } from '../data/ships';
 import { useTiltEffect } from '../hooks/useTiltEffect';
+import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
 import SkeletonImage from './SkeletonImage';
+import { formatShipClassCrew } from '../constants/shipMeta';
 
 interface HeroProps {
   onOpenFeaturedShip: (ship: Ship) => void;
@@ -15,13 +17,6 @@ const featuredShip =
   ships[0];
 
 const inStockCount = ships.filter((ship) => ship.availability === 'In Stock').length;
-
-const classLabels: Record<Ship['class'], string> = {
-  'Solo Pod': 'Соло-под',
-  'Duo Skiff': 'Дуо-скифф',
-  'Tri Cabin': 'Три-кабина',
-  'Quad Shuttle': 'Квадро-шаттл',
-};
 
 const base = import.meta.env.BASE_URL;
 const ambienceVideos = [
@@ -47,6 +42,7 @@ const getInitialVideoIndexPair = (): [number, number] => {
 
 export default function Hero({ onOpenFeaturedShip }: HeroProps) {
   const heroSectionRef = useRef<HTMLElement | null>(null);
+  const prefersReducedMotion = usePrefersReducedMotion();
   const [activeLayer, setActiveLayer] = useState<VideoLayer>(0);
   const [layerVideoIndex, setLayerVideoIndex] = useState<[number, number]>(() => getInitialVideoIndexPair());
   const [isHeroInView, setIsHeroInView] = useState(true);
@@ -201,7 +197,7 @@ export default function Hero({ onOpenFeaturedShip }: HeroProps) {
   const jumpTo = (id: string) => {
     const section = document.getElementById(id);
     if (section) {
-      section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      section.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'start' });
     }
   };
 
@@ -250,16 +246,16 @@ export default function Hero({ onOpenFeaturedShip }: HeroProps) {
           </p>
 
           <p className="soft-copy mt-4 max-w-none font-rajdhani text-lg leading-relaxed text-text-light/90 drop-shadow-[0_4px_14px_rgba(4,3,10,0.78)] sm:text-[1.2rem]">
-            Премиальный док-рум с настоящими конфигурациями: городские рейсы, экспедиции и элитные маршруты.
-            Вся навигация, цены и комплектации — прозрачно и без лишнего шума.
+            Выберите модель под сценарий полётов, сравните параметры и оформите заказ за один проход.
+            Актуальные цены, комплектации и доступность - в одной витрине.
           </p>
 
           <div className="mt-5 flex flex-col gap-4 sm:flex-row">
             <button className="btn-primary" onClick={() => jumpTo('catalog')} type="button">
-              В КАТАЛОГ <ArrowDownRight size={16} />
+              СМОТРЕТЬ КАТАЛОГ <ArrowDownRight size={16} />
             </button>
             <button className="btn-secondary" onClick={() => jumpTo('contact')} type="button">
-              КОНСУЛЬТАЦИЯ
+              ПОЛУЧИТЬ КОНСУЛЬТАЦИЮ
             </button>
           </div>
 
@@ -285,6 +281,18 @@ export default function Hero({ onOpenFeaturedShip }: HeroProps) {
             onClick={() => onOpenFeaturedShip(featuredShip)}
             onMouseMove={onHeroTiltMove}
             onMouseLeave={onHeroTiltLeave}
+            role="button"
+            tabIndex={0}
+            aria-label={`Открыть карточку ${featuredShip.name}`}
+            onKeyDown={(event) => {
+              if (event.target !== event.currentTarget) {
+                return;
+              }
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                onOpenFeaturedShip(featuredShip);
+              }
+            }}
           >
             <div
               className="zoomable relative h-[330px] overflow-hidden rounded-xl sm:h-[430px] lg:h-[500px]"
@@ -319,7 +327,7 @@ export default function Hero({ onOpenFeaturedShip }: HeroProps) {
                   <div>
                     <h2 className="font-orbitron text-2xl uppercase tracking-[0.08em] text-text-light sm:text-3xl">{featuredShip.name}</h2>
                     <p className="mt-1 font-rajdhani text-base text-text-light/75">
-                      {classLabels[featuredShip.class]} / Экипаж {featuredShip.crewMin}-{featuredShip.crewMax}
+                      {formatShipClassCrew(featuredShip)}
                     </p>
                   </div>
                   <div className="text-left sm:text-right">
